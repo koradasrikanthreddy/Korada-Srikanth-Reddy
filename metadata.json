@@ -1,0 +1,7 @@
+{
+  "name": "AI Creative Suite",
+  "description": "A powerful suite of AI-powered tools for design, content creation, and analysis. Generate and edit images, create videos, chat with an AI assistant, get real-time information, and more, all powered by Google's Gemini models.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
