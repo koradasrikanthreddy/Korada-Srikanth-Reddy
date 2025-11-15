@@ -22,6 +22,7 @@ import ContentGenerator from './components/features/ContentGenerator';
 import StandupGenerator from './components/features/StandupGenerator';
 import StrandsGenerator from './components/features/StrandsGenerator';
 import DanceGenerator from './components/features/DanceGenerator';
+import TrafficBooster from './components/features/TrafficBooster';
 import { PLATFORMS, Platform, PlatformCategory } from './constants';
 
 
@@ -109,7 +110,8 @@ export const TrafficBoosterModal: React.FC<TrafficBoosterModalProps> = ({ show, 
                         </div>
                         <div className="grid grid-cols-4 gap-3 text-center p-2 bg-slate-950/50 rounded-lg border border-slate-700">
                             {filteredPlatforms.map(platform => (
-                                <a key={platform.name} href={platform.shareUrl ? platform.shareUrl(contentUrl || window.location.href, shareText, contentType) : '#'} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center p-2 rounded-lg hover:bg-slate-700/50 transition group">
+                                // FIX: The `contentType` prop was being inferred as a generic `string` by TypeScript. Added a type assertion to cast `contentType` to the correct union type to match the `shareUrl` function signature.
+                                <a key={platform.name} href={platform.shareUrl ? platform.shareUrl(contentUrl || window.location.href, shareText, contentType as 'image' | 'video' | 'text' | 'audio') : '#'} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center p-2 rounded-lg hover:bg-slate-700/50 transition group">
                                     <div className="w-10 h-10 text-slate-300 group-hover:text-white transition transform group-hover:scale-110">{platform.icon}</div>
                                     <span className="text-xs mt-1 text-slate-400">{platform.name}</span>
                                 </a>
@@ -205,6 +207,7 @@ const App: React.FC = () => {
             case 'standup-generator': return StandupGenerator;
             case 'strands-generator': return StrandsGenerator;
             case 'dance-generator': return DanceGenerator;
+            case 'traffic-booster': return TrafficBooster;
             case 'pricing': return Pricing;
             case 'profile-settings': return ProfileAndSettings;
             default: return null;

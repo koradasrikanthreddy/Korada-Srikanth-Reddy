@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, GenerateContentResponse, Chat, Modality, Type } from "@google/genai";
 
 // This file centralizes all API calls to the Gemini API.
@@ -528,4 +529,153 @@ export const generateMarketingAngles = async (brandEssence: string, systemInstru
         required: ["marketingAngles"],
     };
     return generateBrandComponent(prompt, systemInstruction, schema);
+};
+
+// --- AI Traffic Booster ---
+export const generateSeoContentPlan = async (topic: string, audience: string): Promise<GenerateContentResponse> => {
+    const ai = getGeminiAI();
+    const prompt = `Act as an expert SEO strategist and content planner. Based on the topic "${topic}" and the target audience "${audience}", generate a complete content plan designed to maximize organic traffic. The plan should include a topic cluster of related subtopics, a list of frequently asked questions (with answers), a list of semantically related keywords, and a detailed content outline for a comprehensive blog post.`;
+
+    return ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    topicCluster: {
+                        type: Type.ARRAY,
+                        description: "A list of related subtopics and long-tail keywords to form a topic cluster around the main topic.",
+                        items: { type: Type.STRING }
+                    },
+                    faqs: {
+                        type: Type.ARRAY,
+                        description: "A list of frequently asked questions (FAQs) related to the topic, suitable for an FAQ schema.",
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                question: { type: Type.STRING },
+                                answer: { type: Type.STRING }
+                            },
+                            required: ['question', 'answer']
+                        }
+                    },
+                    semanticKeywords: {
+                        type: Type.ARRAY,
+                        description: "A list of semantically related keywords and LSI (Latent Semantic Indexing) terms.",
+                        items: { type: Type.STRING }
+                    },
+                    contentOutline: {
+                        type: Type.ARRAY,
+                        description: "A structured content outline for a blog post or article, with headings and sub-points.",
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                heading: { type: Type.STRING },
+                                points: {
+                                    type: Type.ARRAY,
+                                    items: { type: Type.STRING }
+                                }
+                            },
+                            required: ['heading', 'points']
+                        }
+                    }
+                },
+                required: ['topicCluster', 'faqs', 'semanticKeywords', 'contentOutline']
+            }
+        },
+    });
+};
+
+export const generateArticleFromOutline = async (topic: string, outline: { heading: string; points: string[] }[]): Promise<GenerateContentResponse> => {
+    const ai = getGeminiAI();
+    const outlineText = outline.map(section => `## ${section.heading}\n${section.points.map(p => `- ${p}`).join('\n')}`).join('\n\n');
+    const prompt = `Act as an expert content writer and SEO specialist.
+    Write a comprehensive, engaging, and high-quality blog post on the topic of "${topic}".
+    The article must be well-structured and follow this outline precisely:
+    ${outlineText}
+    
+    Flesh out each point in the outline with detailed paragraphs.
+    The tone should be authoritative yet accessible.
+    Format the entire response in Markdown. Ensure the main title is a H1 (#) and section headings are H2 (##). Use bold for important terms. Do not include any pre-amble or post-amble, just the article itself.`;
+
+    return ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+    });
+};
+
+export const generateFaqSchema = async (faqs: { question: string, answer: string }[]): Promise<GenerateContentResponse> => {
+    const ai = getGeminiAI();
+    const prompt = `Based on the following questions and answers, generate a valid JSON-LD script for an "FAQPage" schema.
+    The output must be only the JSON code, without any markdown formatting or explanations.
+    
+    FAQs:
+    ${faqs.map(faq => `Q: ${faq.question}\nA: ${faq.answer}`).join('\n\n')}
+    `;
+
+    return ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    '@context': { type: Type.STRING, description: "Should be 'https://schema.org'" },
+                    '@type': { type: Type.STRING, description: "Should be 'FAQPage'" },
+                    'mainEntity': {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                '@type': { type: Type.STRING, description: "Should be 'Question'" },
+                                'name': { type: Type.STRING, description: "The full question text." },
+                                'acceptedAnswer': {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        '@type': { type: Type.STRING, description: "Should be 'Answer'" },
+                                        'text': { type: Type.STRING, description: "The full answer text." }
+                                    },
+                                    required: ['@type', 'text']
+                                }
+                            },
+                             required: ['@type', 'name', 'acceptedAnswer']
+                        }
+                    }
+                },
+                required: ['@context', '@type', 'mainEntity']
+            }
+        }
+    });
+};
+
+export const generateSocialMediaPack = async (topic: string, summary: string): Promise<GenerateContentResponse> => {
+    const ai = getGeminiAI();
+    const prompt = `Generate a social media pack to promote a new blog post on the topic "${topic}".
+    Here is a summary of the post: "${summary}"
+    
+    Create one post for X and one for LinkedIn.
+    Include relevant hashtags for each platform.
+    Return the response as a valid JSON array of objects, where each object has "platform" and "post" keys.`;
+    
+    return ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        platform: { type: Type.STRING },
+                        post: { type: Type.STRING }
+                    },
+                    required: ['platform', 'post']
+                }
+            }
+        }
+    });
 };
