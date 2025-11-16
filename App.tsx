@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo } from 'react';
 import { FEATURES, FeatureId, CATEGORY_DETAILS } from './constants';
 import ImageGenerator from './components/features/ImageGenerator';
@@ -23,6 +24,7 @@ import StandupGenerator from './components/features/StandupGenerator';
 import StrandsGenerator from './components/features/StrandsGenerator';
 import DanceGenerator from './components/features/DanceGenerator';
 import TrafficBooster from './components/features/TrafficBooster';
+import ViralMemeGenerator from './components/features/ViralMemeGenerator';
 import { PLATFORMS, Platform, PlatformCategory } from './constants';
 
 
@@ -208,6 +210,7 @@ const App: React.FC = () => {
             case 'strands-generator': return StrandsGenerator;
             case 'dance-generator': return DanceGenerator;
             case 'traffic-booster': return TrafficBooster;
+            case 'viral-meme-generator': return ViralMemeGenerator;
             case 'pricing': return Pricing;
             case 'profile-settings': return ProfileAndSettings;
             default: return null;

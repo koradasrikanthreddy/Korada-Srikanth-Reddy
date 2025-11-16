@@ -12,7 +12,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "@google/genai": "^1.29.0",
-    "remarkable": "^2.0.1"
+    "remarkable": "^2.0.1",
+    "qrcode": "^1.5.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

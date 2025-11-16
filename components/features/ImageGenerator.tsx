@@ -2,10 +2,55 @@ import React, { useState, useEffect } from 'react';
 import { generateImage } from '../../services/geminiService';
 import { DESIGN_STYLES, ASPECT_RATIOS, ART_TECHNIQUES_BY_DESIGN, ARTISTIC_STYLES } from '../../constants';
 import Loader from '../common/Loader';
+import QRCode from 'qrcode';
 
 interface ImageGeneratorProps {
     onShare: (options: { contentUrl: string; contentText: string; contentType: 'image' }) => void;
 }
+
+const addQrCodeToImage = (imageBase64: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const uniqueId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+        const verificationUrl = `https://aicreativesuite.dev/verify?id=${uniqueId}`;
+
+        const baseImage = new Image();
+        baseImage.crossOrigin = 'anonymous';
+        baseImage.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = baseImage.width;
+            canvas.height = baseImage.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject('Could not get canvas context');
+
+            ctx.drawImage(baseImage, 0, 0);
+
+            QRCode.toDataURL(verificationUrl, { errorCorrectionLevel: 'H', margin: 1 }, (err, qrUrl) => {
+                if (err) return reject(err);
+
+                const qrImage = new Image();
+                qrImage.crossOrigin = 'anonymous';
+                qrImage.onload = () => {
+                    const qrSize = Math.max(64, Math.floor(baseImage.width * 0.1)); // QR is 10% of image width, min 64px
+                    const padding = qrSize * 0.1;
+                    const x = canvas.width - qrSize - padding;
+                    const y = canvas.height - qrSize - padding;
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(x - (padding / 2), y - (padding / 2), qrSize + padding, qrSize + padding);
+
+                    ctx.drawImage(qrImage, x, y, qrSize, qrSize);
+
+                    resolve(canvas.toDataURL('image/jpeg'));
+                };
+                qrImage.onerror = reject;
+                qrImage.src = qrUrl;
+            });
+        };
+        baseImage.onerror = reject;
+        baseImage.src = `data:image/jpeg;base64,${imageBase64}`;
+    });
+};
+
 
 const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
     const [prompt, setPrompt] = useState('');
@@ -34,7 +79,8 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
         try {
             const fullPrompt = `${prompt}, in a ${designStyle} design style, using a ${artTechnique} technique, with a ${artisticStyle} artistic style.`;
             const imageBytes = await generateImage(fullPrompt, aspectRatio);
-            setImage(`data:image/jpeg;base64,${imageBytes}`);
+            const imageWithQrDataUrl = await addQrCodeToImage(imageBytes);
+            setImage(imageWithQrDataUrl);
         } catch (err) {
             setError('Failed to generate image. Please try again.');
             console.error(err);

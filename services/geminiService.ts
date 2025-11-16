@@ -384,6 +384,93 @@ export const generateMusicCues = async (title: string, genre: string, scenes: {t
     });
 };
 
+// --- Meme Generator ---
+export const generateMemeConcept = async (topic: string, style: string): Promise<GenerateContentResponse> => {
+    const ai = getGeminiAI();
+    const prompt = `Generate a viral meme concept.
+    Topic: "${topic}"
+    Style: "${style}"
+
+    Your task is to provide three pieces of information in a JSON format:
+    1.  'imageDescription': A highly descriptive, literal visual description of the image to be generated. This should be suitable for an AI image generator. Do NOT mention any text, letters, or words in this description.
+    2.  'topText': The short, punchy caption text for the top of the meme. MUST BE IN ALL CAPS.
+    3.  'bottomText': The short, punchy caption text for the bottom of the meme. MUST BE IN ALL CAPS.
+    
+    Example for "Classic" style:
+    - Topic: "waking up early"
+    - Output: { "imageDescription": "A photorealistic image of a grumpy cat with messy fur, glaring at the camera.", "topText": "I'M A MORNING PERSON", "bottomText": "I MOURN THE LOSS OF MY BED" }
+    `;
+
+    return ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    imageDescription: {
+                        type: Type.STRING,
+                        description: "A detailed, literal description of an image for an AI image generator. No text should be mentioned."
+                    },
+                    topText: {
+                        type: Type.STRING,
+                        description: "The caption text for the top of the meme. Keep it short and in ALL CAPS."
+                    },
+                    bottomText: {
+                        type: Type.STRING,
+                        description: "The caption text for the bottom of the meme. Keep it short and in ALL CAPS."
+                    }
+                },
+                required: ["imageDescription", "topText", "bottomText"],
+            },
+        },
+    });
+};
+
+export const generateMemeConceptFromImage = async (imageBase64: string, mimeType: string, style: string): Promise<GenerateContentResponse> => {
+    const ai = getGeminiAI();
+    const prompt = `Analyze this image and generate a viral meme concept in the style of "${style}".
+
+    Your task is to provide three pieces of information in a JSON format:
+    1.  'imageDescription': A short, witty description of what's happening in the image. This will be used as a spoken script.
+    2.  'topText': The short, punchy caption text for the top of the meme. MUST BE IN ALL CAPS.
+    3.  'bottomText': The short, punchy caption text for the bottom of the meme. MUST BE IN ALL CAPS.
+    `;
+
+    return ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: {
+            parts: [
+                { text: prompt },
+                { inlineData: { data: imageBase64, mimeType } },
+            ],
+        },
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    imageDescription: {
+                        type: Type.STRING,
+                        description: "A short, witty, spoken-word style description of what's happening in the image. This will become the audio script."
+                    },
+                    topText: {
+                        type: Type.STRING,
+                        description: "The caption text for the top of the meme. Keep it short and in ALL CAPS."
+                    },
+                    bottomText: {
+                        type: Type.STRING,
+                        description: "The caption text for the bottom of the meme. Keep it short and in ALL CAPS."
+                    }
+                },
+                required: ["imageDescription", "topText", "bottomText"],
+            },
+        },
+    });
+};
+
+
 // --- Marketing Assistant ---
 export const generateAbTestCopy = async (productDescription: string, keyMessage: string, targetAudience: string): Promise<GenerateContentResponse> => {
     const ai = getGeminiAI();
