@@ -1,16 +1,15 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { generateText } from '../../services/geminiService';
 import Loader from '../common/Loader';
 import { Remarkable } from 'remarkable';
+import { EXPANDED_CONTENT_TYPES, BaseContentType, DetailedContentType } from '../../constants';
+
 
 const md = new Remarkable({ html: true });
 
 interface ContentGeneratorProps {
     onShare: (options: { contentText: string; contentType: 'text' }) => void;
 }
-
-type ContentType = 'blog-post' | 'social-media' | 'ad-copy' | 'video-script' | 'creative' | 'product-description' | 'email-newsletter' | 'press-release' | 'case-study';
 
 // --- Helper Components for Form ---
 const Input: React.FC<{ name: string, label: string, placeholder: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, value?: string, required?: boolean }> = ({ name, label, placeholder, onChange, value, required = true }) => (
@@ -39,7 +38,7 @@ const Select: React.FC<{ name: string, label: string, options: string[], onChang
 
 // --- Main Component ---
 const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
-    const [contentType, setContentType] = useState<ContentType>('blog-post');
+    const [selectedTypeId, setSelectedTypeId] = useState<string>('blog-post');
     const [inputs, setInputs] = useState<Record<string, string>>({
         tone: 'Informative',
     });
@@ -47,6 +46,10 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
     const [toastMessage, setToastMessage] = useState('');
+    
+    const allTypes = useMemo(() => Object.values(EXPANDED_CONTENT_TYPES).flat(), []);
+    const selectedType = useMemo(() => allTypes.find(t => t.id === selectedTypeId), [selectedTypeId, allTypes]);
+    const baseType = selectedType?.baseType;
 
     const displayToast = (message: string) => {
         setToastMessage(message);
@@ -58,42 +61,46 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
     };
 
     const generatePrompt = () => {
-        switch (contentType) {
+        if (!selectedType) return '';
+        const promptHint = selectedType.promptHint || '';
+
+        switch (baseType) {
             case 'blog-post':
-                return `Generate a comprehensive, well-structured blog post about "${inputs.topic}".
+                return `Generate a comprehensive, well-structured blog post ${promptHint} about "${inputs.topic}".
                 Keywords to include: ${inputs.keywords || 'N/A'}.
                 Optional Outline: ${inputs.outline || 'Standard blog post structure (introduction, multiple body paragraphs with subheadings, conclusion)'}.
                 The tone should be ${inputs.tone || 'informative'}.
                 Format the response in Markdown with a main title (H1), headings for sections (H2), and sub-headings (H3) if necessary. Use bold for key terms.`;
             case 'social-media':
-                return `Create an engaging social media post for ${inputs.platform || 'any platform'}.
+                return `Create an engaging social media post ${promptHint} for ${inputs.platform || 'any platform'}.
                 Topic: "${inputs.topic}".
                 Tone: ${inputs.tone || 'engaging'}.
                 Please include 3-5 relevant hashtags. The post should be concise and impactful, suitable for the chosen platform.`;
             case 'ad-copy':
-                return `Write compelling ad copy for a marketing campaign.
+                return `Write compelling ad copy ${promptHint} for a marketing campaign.
                 Product/Service Name: ${inputs.product}.
                 Brief Description: ${inputs.description}.
                 Target Audience: ${inputs.audience}.
                 Call to Action: ${inputs.cta}.
-                Generate two distinct variations: one short and punchy, and one slightly more descriptive.`;
+                Generate two distinct variations if applicable: one short and punchy, and one slightly more descriptive.`;
             case 'video-script':
-                return `Write a script for a short ${inputs.style || 'promotional'} video.
+                return `Write a script for a short ${inputs.style || 'promotional'} video ${promptHint}.
                 Topic: "${inputs.topic}".
                 Key Talking Points to cover:\n${inputs.points}.
-                The script should be structured with scene numbers, visual cues (in parentheses), and dialogue/voiceover text. Aim for a script that would last around 60-90 seconds.`;
+                The script should be structured with scene numbers, visual cues (in parentheses), and dialogue/voiceover text.`;
             case 'creative':
-                return `Write a creative piece in the style of ${inputs.style || 'prose'}.
+                return `Write a creative piece ${promptHint}.
+                Style: ${inputs.style || 'prose'}.
                 Prompt: "${inputs.prompt}".
-                Focus on vivid imagery and compelling narrative or poetic language.`;
+                Focus on vivid imagery and compelling language.`;
             case 'product-description':
-                return `Write a persuasive and detailed product description for "${inputs.productName}".
+                return `Write a persuasive and detailed product description for "${inputs.productName}" ${promptHint}.
                 Key Features:
                 - ${inputs.features?.split('\n').join('\n- ')}
                 The tone should be ${inputs.tone || 'enthusiastic'}.
                 The description should highlight the benefits of each feature and be formatted in Markdown with a clear heading and bullet points.`;
             case 'email-newsletter':
-                return `Draft an engaging email newsletter.
+                 return `Draft an engaging email newsletter ${promptHint}.
                 Subject Line: "${inputs.subject}"
                 Target Audience: ${inputs.audience}
                 Main Points to Cover:
@@ -101,7 +108,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
                 Call to Action: ${inputs.cta}
                 The email should have a friendly and conversational tone, with a clear structure (greeting, body, closing).`;
             case 'press-release':
-                 return `Generate a professional press release in AP style.
+                 return `Generate a professional press release ${promptHint} in AP style.
                 Company Name: ${inputs.companyName}.
                 Headline: "${inputs.headline}".
                 Dateline: ${inputs.dateline || 'CITY, State – DATE'}.
@@ -109,7 +116,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
                 Include a compelling quote from a company spokesperson: "${inputs.quote}".
                 The press release must include a boilerplate about the company, a media contact section, and "###" to signify the end.`;
             case 'case-study':
-                return `Write a compelling case study.
+                return `Write a compelling case study ${promptHint}.
                 Company Name: ${inputs.companyName}
                 Customer Name: ${inputs.customerName}
                 The Problem/Challenge: ${inputs.problem}
@@ -145,7 +152,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
     };
     
     const renderInputs = () => {
-        switch (contentType) {
+        switch (baseType) {
             case 'blog-post':
                 return (
                     <>
@@ -159,7 +166,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
                 return (
                     <>
                         <Input name="topic" label="Topic" placeholder="e.g., Announcing our new feature" onChange={handleInputChange} value={inputs.topic}/>
-                        <Select name="platform" label="Platform" options={['X', 'LinkedIn', 'Instagram', 'Facebook']} onChange={handleInputChange} value={inputs.platform} />
+                        <Select name="platform" label="Platform" options={['X', 'LinkedIn', 'Instagram', 'Facebook', 'Any Platform']} onChange={handleInputChange} value={inputs.platform} />
                         <Select name="tone" label="Tone" options={['Professional', 'Casual', 'Witty', 'Persuasive', 'Inspirational']} onChange={handleInputChange} value={inputs.tone}/>
                     </>
                 );
@@ -183,7 +190,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
             case 'creative':
                 return (
                     <>
-                         <Select name="style" label="Style" options={['Short Story', 'Poem', 'Dialogue', 'Monologue']} onChange={handleInputChange} value={inputs.style}/>
+                         <Select name="style" label="Style" options={['Short Story', 'Poem', 'Dialogue', 'Monologue', 'Prose']} onChange={handleInputChange} value={inputs.style}/>
                          <Textarea name="prompt" label="Prompt" rows={6} placeholder="e.g., A detective finds a mysterious clock that can stop time, but each use has a cost." onChange={handleInputChange} value={inputs.prompt}/>
                     </>
                 );
@@ -240,24 +247,24 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onShare }) => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label htmlFor="content-type" className="block text-sm font-medium text-slate-300 mb-2">Content Type</label>
-                        <select id="content-type" name="contentType" value={contentType} onChange={(e) => { setContentType(e.target.value as ContentType); setInputs({ tone: inputs.tone }); setResult(null); }} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500">
-                            <optgroup label="Marketing">
-                                <option value="social-media">Social Media Post</option>
-                                <option value="ad-copy">Ad Copy</option>
-                                <option value="email-newsletter">Email Newsletter</option>
-                            </optgroup>
-                            <optgroup label="Business">
-                                <option value="press-release">Press Release</option>
-                                <option value="case-study">Case Study</option>
-                                <option value="product-description">Product Description</option>
-                            </optgroup>
-                             <optgroup label="Long Form">
-                                <option value="blog-post">Blog Post</option>
-                                <option value="video-script">Video Script</option>
-                            </optgroup>
-                            <optgroup label="Creative">
-                                <option value="creative">Creative Writing</option>
-                            </optgroup>
+                        <select
+                            id="content-type"
+                            name="contentType"
+                            value={selectedTypeId}
+                            onChange={(e) => {
+                                setSelectedTypeId(e.target.value);
+                                setInputs({ tone: inputs.tone });
+                                setResult(null);
+                            }}
+                            className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
+                        >
+                            {Object.entries(EXPANDED_CONTENT_TYPES).map(([groupName, types]) => (
+                                <optgroup label={groupName} key={groupName}>
+                                    {types.map(type => (
+                                        <option key={type.id} value={type.id}>{type.label}</option>
+                                    ))}
+                                </optgroup>
+                            ))}
                         </select>
                     </div>
                     {renderInputs()}

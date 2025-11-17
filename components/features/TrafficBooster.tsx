@@ -1,210 +1,257 @@
 import React, { useState } from 'react';
-import { 
-    generateSeoContentPlan,
-    generateArticleFromOutline,
-    generateFaqSchema,
-    generateSocialMediaPack
-} from '../../services/geminiService';
 import Loader from '../common/Loader';
-import { Remarkable } from 'remarkable';
-
-const md = new Remarkable({ html: true });
 
 interface TrafficBoosterProps {
     onShare: (options: { contentText: string; contentType: 'text' }) => void;
 }
 
-interface SeoPlan {
-    topicCluster: string[];
-    faqs: { question: string; answer: string }[];
-    semanticKeywords: string[];
-    contentOutline: { heading: string; points: string[] }[];
-}
-
-interface SocialPost {
-    platform: string;
-    post: string;
+interface Business {
+    id: string;
+    name: string;
+    address: string;
+    phone: string;
+    website: string;
+    rating: number;
+    reviews: number;
 }
 
 const TrafficBooster: React.FC<TrafficBoosterProps> = ({ onShare }) => {
-    const [topic, setTopic] = useState('');
-    const [audience, setAudience] = useState('');
+    const [query, setQuery] = useState('');
+    const [location, setLocation] = useState('');
+    const [maxResults, setMaxResults] = useState(20);
+    const [results, setResults] = useState<Business[]>([]);
     const [loading, setLoading] = useState(false);
+    const [progressMessage, setProgressMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const [plan, setPlan] = useState<SeoPlan | null>(null);
-    const [article, setArticle] = useState<string | null>(null);
-    const [faqSchema, setFaqSchema] = useState<string | null>(null);
-    const [socialPosts, setSocialPosts] = useState<SocialPost[] | null>(null);
+    const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
-    const [loadingArticle, setLoadingArticle] = useState(false);
-    const [loadingSchema, setLoadingSchema] = useState(false);
-    const [loadingSocial, setLoadingSocial] = useState(false);
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-    const [toastMessage, setToastMessage] = useState('');
-
-    const displayToast = (message: string) => {
-        setToastMessage(message);
-        setTimeout(() => setToastMessage(''), 2000);
+    const getPlaceDetails = async (placeId: string): Promise<Business | null> => {
+        const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=place_id,name,formatted_address,formatted_phone_number,website,rating,user_ratings_total&key=${process.env.API_KEY}`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status !== "OK") return null;
+            const result = data.result;
+            return {
+                id: result.place_id,
+                name: result.name,
+                address: result.formatted_address,
+                phone: result.formatted_phone_number || "N/A",
+                website: result.website || "N/A",
+                rating: result.rating || 0,
+                reviews: result.user_ratings_total || 0,
+            };
+        } catch (err) {
+            console.error("Place Details fetch error:", err);
+            return null;
+        }
     };
 
-    const handleCopyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        displayToast('Copied to clipboard!');
-    };
-    
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!topic || !audience) {
-            setError('Please provide both a topic and a target audience.');
+        if (!query || !location) {
+            setError('Query and Location are required.');
             return;
         }
         setLoading(true);
         setError(null);
-        setPlan(null);
-        setArticle(null);
-        setFaqSchema(null);
-        setSocialPosts(null);
+        setResults([]);
+        setProgressMessage('Starting extraction...');
+
+        let fetchedResults: Business[] = [];
+        let nextPageToken: string | null = null;
+        let pagesFetched = 0;
 
         try {
-            const response = await generateSeoContentPlan(topic, audience);
-            const parsedResult: SeoPlan = JSON.parse(response.text);
-            setPlan(parsedResult);
-        } catch (err) {
-            setError('Failed to generate SEO plan. Please try again.');
-            console.error(err);
+            do {
+                const searchUrl = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
+                searchUrl.searchParams.append('query', `${query} in ${location}`);
+                searchUrl.searchParams.append('key', process.env.API_KEY);
+                if (nextPageToken) {
+                    searchUrl.searchParams.append('pagetoken', nextPageToken);
+                }
+                
+                const res = await fetch(searchUrl.toString());
+                const data = await res.json();
+
+                if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+                    throw new Error(data.error_message || `API Error: ${data.status}`);
+                }
+                
+                if (data.results) {
+                    for (const item of data.results) {
+                        if (fetchedResults.length >= maxResults) break;
+                        setProgressMessage(`Fetching details for "${item.name}"... (${fetchedResults.length + 1}/${maxResults})`);
+                        const fullDetails = await getPlaceDetails(item.place_id);
+                        if (fullDetails) {
+                            fetchedResults.push(fullDetails);
+                            setResults([...fetchedResults]); // Update state incrementally
+                        }
+                        await delay(50); // Small delay to avoid hitting limits too fast
+                    }
+                }
+
+                nextPageToken = data.next_page_token || null;
+                pagesFetched++;
+
+                if (nextPageToken && fetchedResults.length < maxResults) {
+                    setProgressMessage('Waiting for next page of results...');
+                    await delay(2000); // Google requires a delay before using next_page_token
+                }
+
+            } while (nextPageToken && fetchedResults.length < maxResults && pagesFetched < 10);
+            
+            setProgressMessage(`Extraction complete. Found ${fetchedResults.length} businesses.`);
+
+        } catch (err: any) {
+            setError(err.message || 'An unknown error occurred during extraction.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleGenerateArticle = async () => {
-        if (!plan?.contentOutline || !topic) return;
-        setLoadingArticle(true);
-        setArticle(null);
-        try {
-            const response = await generateArticleFromOutline(topic, plan.contentOutline);
-            setArticle(response.text);
-        } catch (err) {
-            setError('Failed to generate the article.');
-        } finally {
-            setLoadingArticle(false);
-        }
+    const handleUseLocation = () => {
+        setIsFetchingLocation(true);
+        setError(null);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.API_KEY}`;
+                try {
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if (data.results && data.results.length > 0) {
+                        // Find a locality or similar level
+                        const address = data.results[0].formatted_address;
+                        setLocation(address);
+                    } else {
+                        setError('Could not determine your location name.');
+                    }
+                } catch (err) {
+                    setError('Failed to reverse geocode your location.');
+                } finally {
+                    setIsFetchingLocation(false);
+                }
+            },
+            (geoError) => {
+                setError('Could not get location. Please enable location services.');
+                setIsFetchingLocation(false);
+            }
+        );
+    };
+
+    const convertToCSV = (data: Business[]) => {
+        const headers = ['Name', 'Address', 'Phone', 'Website', 'Rating', 'Reviews'];
+        const rows = data.map(bus => 
+            [bus.name, bus.address, bus.phone, bus.website, bus.rating, bus.reviews]
+            .map(val => `"${String(val).replace(/"/g, '""')}"`) // Escape quotes
+            .join(',')
+        );
+        return [headers.join(','), ...rows].join('\n');
+    };
+
+    const handleExport = () => {
+        const csvData = convertToCSV(results);
+        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'google-maps-extract.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
     
-    const handleGenerateFaqSchema = async () => {
-        if (!plan?.faqs) return;
-        setLoadingSchema(true);
-        setFaqSchema(null);
-        try {
-            const response = await generateFaqSchema(plan.faqs);
-            const schemaText = response.text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-            setFaqSchema(JSON.stringify(JSON.parse(schemaText), null, 2));
-        } catch(err) {
-            setError('Failed to generate schema.');
-        } finally {
-            setLoadingSchema(false);
-        }
-    };
-
-    const handleGenerateSocialPosts = async () => {
-        if (!article || !topic) return;
-        setLoadingSocial(true);
-        setSocialPosts(null);
-        try {
-            const articleSummary = article.substring(0, 300) + '...';
-            const response = await generateSocialMediaPack(topic, articleSummary);
-            const posts = JSON.parse(response.text.replace(/^```json\s*/, '').replace(/\s*```$/, ''));
-            setSocialPosts(posts);
-        } catch(err) {
-            setError('Failed to generate social posts.');
-        } finally {
-            setLoadingSocial(false);
-        }
-    };
-
-    const fullShareText = () => {
-        if (!plan) return '';
-        let text = `SEO Content Plan for: ${topic}\nTarget Audience: ${audience}\n\n`;
-        if (plan.topicCluster) text += `## Topic Cluster\n${plan.topicCluster.map(item => `- ${item}`).join('\n')}\n\n`;
-        if (article) text += `## Full Article\n${article}\n\n`;
-        if (socialPosts) text += `## Social Posts\n${socialPosts.map(p => `### ${p.platform}\n${p.post}`).join('\n\n')}\n\n`;
-        if (faqSchema) text += `## FAQ Schema\n\`\`\`json\n${faqSchema}\n\`\`\`\n\n`;
-        return text.trim();
+    const handleShare = () => {
+        const text = `Extracted ${results.length} businesses for query "${query}" in "${location}".\n\nTop 5 Results:\n` +
+            results.slice(0, 5).map(r => `- ${r.name} (${r.rating}⭐, ${r.reviews} reviews)`).join('\n');
+        onShare({ contentText: text, contentType: 'text'});
     };
 
     return (
-        <div className="space-y-8 relative">
-             {toastMessage && (
-                <div className="fixed top-24 right-10 bg-green-500 text-white py-2 px-4 rounded-lg animate-pulse z-20">
-                    {toastMessage}
-                </div>
-            )}
-            
+        <div className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-                <fieldset disabled={loading} className="space-y-4">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1">
-                            <label htmlFor="topic" className="block text-sm font-medium text-slate-300 mb-2">Topic / Main Keyword</label>
-                            <input id="topic" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., 'sustainable fashion'" />
-                        </div>
-                        <div className="flex-1">
-                            <label htmlFor="audience" className="block text-sm font-medium text-slate-300 mb-2">Target Audience</label>
-                            <input id="audience" type="text" value={audience} onChange={(e) => setAudience(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., 'eco-conscious millennials'" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="lg:col-span-2">
+                        <label htmlFor="query" className="block text-sm font-medium text-slate-300 mb-2">Keyword</label>
+                        <input id="query" type="text" value={query} onChange={e => setQuery(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., 'digital marketing agencies'" />
+                    </div>
+                    <div className="lg:col-span-2">
+                        <label htmlFor="location" className="block text-sm font-medium text-slate-300 mb-2">Location</label>
+                        <div className="flex gap-2">
+                            <input id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., 'New York'" />
+                            <button type="button" onClick={handleUseLocation} disabled={isFetchingLocation} className="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition" title="Use my current location">
+                                {isFetchingLocation ? <Loader /> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>}
+                            </button>
                         </div>
                     </div>
-                    <button type="submit" className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300 flex items-center justify-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6L18.29 8.29L13.41 13.17L9.41 9.17L2 16.59L3.41 18L9.41 12L13.41 16L19.71 9.71L22 12V6H16Z"></path></svg>
-                        <span>{loading ? 'Generating Plan...' : 'Generate SEO Plan'}</span>
-                    </button>
-                </fieldset>
-                {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+                    <div>
+                        <label htmlFor="maxResults" className="block text-sm font-medium text-slate-300 mb-2">Max Results</label>
+                        <input id="maxResults" type="number" value={maxResults} onChange={e => setMaxResults(Number(e.target.value))} min="1" max="200" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" />
+                    </div>
+                </div>
+                <button type="submit" disabled={loading} className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300 flex items-center justify-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"></path></svg>
+                    <span>{loading ? 'Extracting...' : 'Extract Businesses'}</span>
+                </button>
+                {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
             </form>
-            
-            {loading && <Loader message="Generating a data-driven SEO strategy..." />}
 
-            {plan && (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-white">Generated Content Plan</h2>
-                        <button onClick={() => onShare({ contentText: fullShareText(), contentType: 'text' })} className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-300 text-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
-                            <span>Share Full Report</span>
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3"><h3 className="text-lg font-bold text-cyan-400">Topic Cluster</h3><div className="flex flex-wrap gap-2">{plan.topicCluster.map(item => (<span key={item} className="bg-slate-700/50 text-slate-300 text-sm py-1 px-3 rounded-full">{item}</span>))}</div></div>
-                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-3"><h3 className="text-lg font-bold text-cyan-400">Semantic Keywords</h3><div className="flex flex-wrap gap-2">{plan.semanticKeywords.map(item => (<span key={item} className="bg-slate-700/50 text-slate-300 text-sm py-1 px-3 rounded-full">{item}</span>))}</div></div>
-                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 lg:col-span-2"><h3 className="text-lg font-bold text-cyan-400 mb-3">Content Outline</h3><div className="space-y-4">{plan.contentOutline.map((s, i) => (<div key={i}><h4 className="font-semibold text-slate-100">{s.heading}</h4><ul className="list-disc list-inside space-y-1 mt-1 pl-2 text-sm text-slate-400">{s.points.map(p => <li key={p}>{p}</li>)}</ul></div>))}</div><div className="mt-4 pt-3 border-t border-slate-700"><button onClick={handleGenerateArticle} disabled={loadingArticle} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 disabled:bg-slate-600 transition-colors">{loadingArticle ? 'Generating Article...' : '✨ Generate Full Article'}</button></div></div>
-                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 lg:col-span-2"><h3 className="text-lg font-bold text-cyan-400 mb-3">FAQs</h3><div className="space-y-2">{plan.faqs.map((faq, i) => (<details key={i} className="bg-slate-800 p-3 rounded-lg text-sm"><summary className="font-semibold text-slate-200 cursor-pointer">{faq.question}</summary><p className="mt-2 text-slate-400">{faq.answer}</p></details>))}</div><div className="mt-4 pt-3 border-t border-slate-700"><button onClick={handleGenerateFaqSchema} disabled={loadingSchema} className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-slate-600 transition-colors">{loadingSchema ? 'Generating Schema...' : '📄 Generate FAQPage Schema'}</button></div></div>
-                    </div>
-
-                    {(loadingArticle || article) && (
-                        <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-700">
-                            <h3 className="text-xl font-bold text-white mb-4">Generated Article</h3>
-                            {loadingArticle && <Loader message="Writing your article..." />}
-                            {article && <div className="prose prose-invert max-w-none prose-p:text-slate-300 prose-headings:text-white"><div dangerouslySetInnerHTML={{ __html: md.render(article) }} /></div>}
-                            {article && <div className="mt-6 pt-4 border-t border-slate-700"><button onClick={handleGenerateSocialPosts} disabled={loadingSocial} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-slate-600 transition-colors">{loadingSocial ? 'Generating Posts...' : '🚀 Generate Social Media Pack'}</button></div>}
-                        </div>
-                    )}
-                    
-                     {(loadingSocial || socialPosts) && (
-                        <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-700">
-                            <h3 className="text-xl font-bold text-white mb-4">Social Media Pack</h3>
-                            {loadingSocial && <Loader message="Crafting social posts..." />}
-                            {socialPosts && <div className="space-y-4">{socialPosts.map((p, i) => (<div key={i} className="bg-slate-800 p-4 rounded-lg"><div className="flex justify-between items-center mb-2"><h4 className="font-bold text-cyan-400">{p.platform}</h4><button onClick={() => handleCopyToClipboard(p.post)} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-3 rounded-full">Copy</button></div><p className="text-sm text-slate-300 whitespace-pre-wrap">{p.post}</p></div>))}</div>}
-                        </div>
-                    )}
-
-                    {(loadingSchema || faqSchema) && (
-                        <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-700">
-                            <h3 className="text-xl font-bold text-white mb-4">FAQPage JSON-LD Schema</h3>
-                            {loadingSchema && <Loader message="Generating schema..." />}
-                            {faqSchema && <div><pre className="text-xs bg-slate-950 p-4 rounded-lg overflow-x-auto text-green-300 whitespace-pre-wrap">{faqSchema}</pre><div className="text-center mt-4"><button onClick={() => handleCopyToClipboard(faqSchema)} className="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg">Copy Schema</button></div></div>}
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold">Results</h3>
+                    {results.length > 0 && (
+                        <div className="flex gap-2">
+                            <button onClick={handleShare} className="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 transition text-sm">Share</button>
+                            <button onClick={handleExport} className="bg-slate-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition text-sm">Export CSV</button>
                         </div>
                     )}
                 </div>
-            )}
+
+                {loading && <Loader message={progressMessage} />}
+                
+                {!loading && results.length === 0 && (
+                    <div className="text-center py-10 text-slate-500">
+                        Your extracted business data will appear here.
+                    </div>
+                )}
+                
+                {results.length > 0 && (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-300">
+                            <thead className="text-xs text-slate-400 uppercase bg-slate-800">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3">Name</th>
+                                    <th scope="col" className="px-6 py-3">Address</th>
+                                    <th scope="col" className="px-6 py-3">Phone</th>
+                                    <th scope="col" className="px-6 py-3">Website</th>
+                                    <th scope="col" className="px-6 py-3 text-center">Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {results.map((bus) => (
+                                    <tr key={bus.id} className="border-b border-slate-700 hover:bg-slate-800/50">
+                                        <td className="px-6 py-4 font-medium text-white">{bus.name}</td>
+                                        <td className="px-6 py-4">{bus.address}</td>
+                                        <td className="px-6 py-4">{bus.phone}</td>
+                                        <td className="px-6 py-4">
+                                            {bus.website !== 'N/A' ? <a href={bus.website} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Visit</a> : 'N/A'}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex items-center justify-center">
+                                                <span className="text-amber-400 mr-1">★</span> {bus.rating} ({bus.reviews})
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
