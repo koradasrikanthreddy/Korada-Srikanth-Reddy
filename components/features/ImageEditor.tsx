@@ -128,7 +128,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ onShare }) => {
 
                     <button
                         type="submit"
-                        disabled={loading || !originalImage}
+                        disabled={loading}
                         className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300"
                     >
                         {loading ? 'Applying Edits...' : 'Edit Image'}

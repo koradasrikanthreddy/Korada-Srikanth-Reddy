@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { analyzeImage, analyzeVideoFrame, transcribeAudio } from '../../services/geminiService';
 import { fileToBase64 } from '../../utils';
@@ -147,7 +148,7 @@ const MediaAnalyzer: React.FC<MediaAnalyzerProps> = ({ onShare }) => {
                         />
                     )}
                     
-                    <button type="submit" disabled={loading || !file} className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300">
+                    <button type="submit" disabled={loading} className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300">
                         {loading ? `Analyzing ${mode}...` : `Analyze ${mode}`}
                     </button>
                      {error && <p className="text-red-400 text-sm mt-2">{error}</p>}

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { encode, decode } from '../../utils';
@@ -209,7 +210,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onShare }) => {
         <div className="flex flex-col h-[calc(100vh-10rem)] max-h-[800px] bg-slate-900/50 rounded-lg border border-slate-700">
             <div className="flex-shrink-0 p-4 border-b border-slate-700 flex justify-between items-center">
                 <h3 className="font-bold text-lg text-white">Voice Chat</h3>
-                <button onClick={handleShare} disabled={transcripts.length === 0} className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-3 rounded-lg hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors text-sm">
+                <button onClick={handleShare} className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-3 rounded-lg hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
                     <span>Share Transcript</span>
                 </button>

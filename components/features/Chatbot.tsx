@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { createChatSession } from '../../services/geminiService';
 import { Chat, GenerateContentResponse } from '@google/genai';
@@ -122,8 +123,7 @@ TikTok's Modern Tech Stack:
                 <h3 className="font-bold text-lg text-white">AI Assistant</h3>
                 <button
                     onClick={handleShare}
-                    disabled={messages.length <= 1}
-                    className="flex items-center justify-center space-x-2 bg-purple-600 text-white font-bold py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors duration-300 text-sm disabled:bg-slate-600 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center space-x-2 bg-purple-600 text-white font-bold py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors duration-300 text-sm"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
@@ -174,7 +174,7 @@ TikTok's Modern Tech Stack:
                         className="flex-grow bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
                         disabled={loading}
                     />
-                    <button type="submit" disabled={loading || !input.trim()} className="bg-cyan-500 text-white font-bold p-3 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300">
+                    <button type="submit" disabled={loading} className="bg-cyan-500 text-white font-bold p-3 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                     </button>
                 </form>

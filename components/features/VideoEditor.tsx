@@ -222,7 +222,7 @@ const VideoEditor: React.FC<VideoEditorProps> = ({ onShare }) => {
 
                     {/* Step 1: Initial Video Generation Form */}
                     <form onSubmit={handleInitialSubmit} className="space-y-4 p-4 bg-slate-800 rounded-lg border border-slate-700">
-                        <fieldset disabled={loadingInitial || !!initialVideoUrl}>
+                        <fieldset disabled={loadingInitial}>
                             <h4 className="font-semibold text-slate-200">Step 1: Create a Base Video</h4>
                             <textarea
                                 rows={3}
@@ -247,14 +247,14 @@ const VideoEditor: React.FC<VideoEditorProps> = ({ onShare }) => {
                                 </div>
                             </div>
                             <button type="submit" className="w-full mt-2 bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300">
-                                {initialVideoUrl ? 'Base Video Created' : (loadingInitial ? 'Creating...' : 'Create Base Video')}
+                                {initialVideoUrl ? 'Regenerate Base Video' : (loadingInitial ? 'Creating...' : 'Create Base Video')}
                             </button>
                         </fieldset>
                     </form>
 
                     {/* Step 2: Extension Form */}
                     <form onSubmit={handleExtensionSubmit} className="space-y-4 p-4 bg-slate-800 rounded-lg border border-slate-700">
-                        <fieldset disabled={!initialVideoUrl || loadingExtension || loadingInitial}>
+                        <fieldset disabled={loadingExtension || loadingInitial}>
                             <h4 className="font-semibold text-slate-200">Step 2: Extend Your Video (+7s)</h4>
                             <textarea
                                 rows={3}
