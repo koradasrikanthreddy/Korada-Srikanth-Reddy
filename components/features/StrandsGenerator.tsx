@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import {
     generateBrandEssence,
     generateNameSuggestions,
     generateTaglinesAndSocial,
     generateVisualIdentity,
-    generateMarketingAngles
+    generateMarketingAngles,
+    generateImage,
 } from '../../services/geminiService';
 import Loader from '../common/Loader';
 import { STRANDS_LEAD_AGENTS, STRANDS_SPECIALIST_AGENTS } from '../../constants';
@@ -49,6 +49,8 @@ const StrandsGenerator: React.FC<StrandsGeneratorProps> = ({ onShare }) => {
     
     // Outputs & State
     const [result, setResult] = useState<Partial<BrandStrands> | null>(null);
+    const [logoImage, setLogoImage] = useState<string | null>(null);
+    const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [toastMessage, setToastMessage] = useState('');
@@ -69,6 +71,7 @@ const StrandsGenerator: React.FC<StrandsGeneratorProps> = ({ onShare }) => {
         setLoading(true);
         setError(null);
         setResult(null);
+        setLogoImage(null);
         setAgentProgress({ ...initialProgress, strategist: 'working' });
 
         try {
@@ -108,7 +111,8 @@ const StrandsGenerator: React.FC<StrandsGeneratorProps> = ({ onShare }) => {
         } catch (err) {
             setError('An agent failed its task. Please check your input and try again.');
             setAgentProgress(prev => {
-                const updatedProgress = { ...prev! };
+                if (!prev) return null;
+                const updatedProgress = { ...prev };
                 const workingAgent = Object.keys(updatedProgress).find(key => updatedProgress[key as AgentName] === 'working');
                 if (workingAgent) {
                     updatedProgress[workingAgent as AgentName] = 'error';
@@ -118,6 +122,23 @@ const StrandsGenerator: React.FC<StrandsGeneratorProps> = ({ onShare }) => {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+    
+    const handleGenerateLogo = async () => {
+        if (!result?.visualIdentity?.logoConcept) return;
+
+        setIsGeneratingLogo(true);
+        setLogoImage(null);
+        try {
+            const prompt = `A minimalist, vector-style logo based on the following concept: "${result.visualIdentity.logoConcept}". The logo should be on a clean, white background.`;
+            const imageBytes = await generateImage(prompt, '1:1');
+            setLogoImage(`data:image/jpeg;base64,${imageBytes}`);
+        } catch(err) {
+            console.error("Logo generation failed:", err);
+            displayToast("Logo generation failed.");
+        } finally {
+            setIsGeneratingLogo(false);
         }
     };
 
@@ -276,7 +297,18 @@ const StrandsGenerator: React.FC<StrandsGeneratorProps> = ({ onShare }) => {
                         {result.visualIdentity && (
                              <ResultCard title="Visual Identity" agentIcon={STRANDS_SPECIALIST_AGENTS.artDirector.icon}>
                                 <div className="space-y-4">
-                                    <div><h4 className="font-semibold text-slate-100 mb-1">Logo Concept</h4><p className="text-sm">{result.visualIdentity.logoConcept}</p></div>
+                                    <div>
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="font-semibold text-slate-100 mb-1">Logo Concept</h4>
+                                            <button onClick={handleGenerateLogo} disabled={isGeneratingLogo} className="text-xs font-semibold py-1 px-3 rounded-full transition bg-purple-600 hover:bg-purple-700 text-white disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center space-x-1.5">
+                                                 <span>✨</span>
+                                                 <span>{isGeneratingLogo ? 'Generating...' : 'Generate Logo'}</span>
+                                            </button>
+                                        </div>
+                                        <p className="text-sm">{result.visualIdentity.logoConcept}</p>
+                                        {isGeneratingLogo && <div className="mt-4"><Loader message="Generating logo..."/></div>}
+                                        {logoImage && <img src={logoImage} alt="Generated logo" className="mt-4 rounded-lg border border-slate-600" />}
+                                    </div>
                                     <div>
                                         <h4 className="font-semibold text-slate-100 mb-2">Color Palette</h4>
                                         <div className="flex flex-wrap gap-4 items-center">{result.visualIdentity.colorPalette.map(color => (<div key={color.hex} className="text-center"><div className="w-12 h-12 rounded-full border-2 border-slate-600 mb-1" style={{ backgroundColor: color.hex }}></div><p className="text-xs font-medium">{color.name}</p><p className="text-xs text-slate-400">{color.hex}</p></div>))}</div>

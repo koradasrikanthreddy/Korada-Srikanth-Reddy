@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { editImage } from '../../services/geminiService';
 import ImageUploader from '../common/ImageUploader';
@@ -59,7 +60,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ onShare }) => {
         <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 {/* Original Image */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                     <h3 className="text-lg font-bold text-center text-slate-300">Original</h3>
                     <ImageUploader 
                         onImageUpload={handleImageUpload}
@@ -68,14 +69,14 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ onShare }) => {
                 </div>
                 
                 {/* Edited Image */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                     <h3 className="text-lg font-bold text-center text-slate-300">Edited</h3>
-                    <div className="w-full h-full relative bg-slate-800/50 border border-slate-700 rounded-lg p-6 text-center flex items-center justify-center min-h-[300px]">
+                    <div className="w-full h-full relative bg-slate-900/50 border border-slate-700 rounded-lg p-6 text-center flex items-center justify-center min-h-[300px] aspect-square">
                         {loading && <Loader message="The AI is working its magic..." />}
                         {!loading && editedImage && (
-                            <div className="text-center">
+                            <div className="text-center group">
                                 <img src={editedImage} alt="Edited" className="max-w-full max-h-[60vh] rounded-lg object-contain" />
-                                <div className="mt-4">
+                                <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button
                                         onClick={() => onShare({ contentUrl: editedImage, contentText: prompt, contentType: 'image' })}
                                         className="flex items-center justify-center space-x-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-300"
@@ -93,40 +94,48 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ onShare }) => {
                 </div>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl mx-auto">
-                <textarea
-                    rows={3}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
-                    placeholder="e.g., Add a retro filter, or remove the person in the background"
-                />
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                        <div>
+                            <label htmlFor="edit-prompt" className="block text-sm font-medium text-slate-300 mb-2">Editing Instructions</label>
+                            <textarea
+                                id="edit-prompt"
+                                rows={5}
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition"
+                                placeholder="e.g., Add a retro filter, or remove the person in the background"
+                            />
+                        </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Suggestions</label>
-                    <div className="flex flex-wrap gap-2">
-                        {IMAGE_EDIT_SUGGESTIONS.map(suggestion => (
-                            <button
-                                key={suggestion}
-                                type="button"
-                                onClick={() => setPrompt(suggestion)}
-                                className="bg-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full hover:bg-slate-600 transition"
-                            >
-                                {suggestion}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Suggestions</label>
+                            <div className="flex flex-wrap gap-2">
+                                {IMAGE_EDIT_SUGGESTIONS.map(suggestion => (
+                                    <button
+                                        key={suggestion}
+                                        type="button"
+                                        onClick={() => setPrompt(suggestion)}
+                                        className="bg-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full hover:bg-slate-600 transition"
+                                    >
+                                        {suggestion}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                     </div>
 
-                <button
-                    type="submit"
-                    disabled={loading || !originalImage}
-                    className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300"
-                >
-                    {loading ? 'Applying Edits...' : 'Edit Image'}
-                </button>
-                {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
-            </form>
+                    <button
+                        type="submit"
+                        disabled={loading || !originalImage}
+                        className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300"
+                    >
+                        {loading ? 'Applying Edits...' : 'Edit Image'}
+                    </button>
+                    {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
+                </form>
+            </div>
         </div>
     );
 };

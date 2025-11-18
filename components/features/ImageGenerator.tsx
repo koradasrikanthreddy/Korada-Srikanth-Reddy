@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { generateImage } from '../../services/geminiService';
 import { DESIGN_STYLES, ASPECT_RATIOS, ART_TECHNIQUES_BY_DESIGN, ARTISTIC_STYLES } from '../../constants';
@@ -24,22 +26,20 @@ const addQrCodeToImage = (imageBase64: string): Promise<string> => {
 
             ctx.drawImage(baseImage, 0, 0);
 
-            QRCode.toDataURL(verificationUrl, { errorCorrectionLevel: 'H', margin: 1 }, (err, qrUrl) => {
+            QRCode.toDataURL(verificationUrl, { errorCorrectionLevel: 'H', margin: 1, width: 128 }, (err, qrUrl) => {
                 if (err) return reject(err);
 
                 const qrImage = new Image();
                 qrImage.crossOrigin = 'anonymous';
                 qrImage.onload = () => {
-                    const qrSize = Math.max(64, Math.floor(baseImage.width * 0.1)); // QR is 10% of image width, min 64px
+                    const qrSize = Math.max(64, Math.floor(baseImage.width * 0.1));
                     const padding = qrSize * 0.1;
                     const x = canvas.width - qrSize - padding;
                     const y = canvas.height - qrSize - padding;
                     
-                    ctx.fillStyle = 'white';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                     ctx.fillRect(x - (padding / 2), y - (padding / 2), qrSize + padding, qrSize + padding);
-
                     ctx.drawImage(qrImage, x, y, qrSize, qrSize);
-
                     resolve(canvas.toDataURL('image/jpeg'));
                 };
                 qrImage.onerror = reject;
@@ -54,10 +54,12 @@ const addQrCodeToImage = (imageBase64: string): Promise<string> => {
 
 const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
     const [prompt, setPrompt] = useState('');
+    const [negativePrompt, setNegativePrompt] = useState('');
     const [designStyle, setDesignStyle] = useState(DESIGN_STYLES[0]);
     const [artTechnique, setArtTechnique] = useState('');
     const [artisticStyle, setArtisticStyle] = useState(ARTISTIC_STYLES[0]);
     const [aspectRatio, setAspectRatio] = useState(ASPECT_RATIOS[0]);
+    const [addQr, setAddQr] = useState(true);
     const [image, setImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -77,10 +79,17 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
         setError(null);
         setImage(null);
         try {
-            const fullPrompt = `${prompt}, in a ${designStyle} design style, using a ${artTechnique} technique, with a ${artisticStyle} artistic style.`;
+            let fullPrompt = `${prompt}, in a ${designStyle} design style${artTechnique ? `, using a ${artTechnique} technique` : ''}${artisticStyle !== 'None' ? `, with a ${artisticStyle} artistic style` : ''}.`;
+            if (negativePrompt) {
+                fullPrompt += ` --no ${negativePrompt}`;
+            }
             const imageBytes = await generateImage(fullPrompt, aspectRatio);
-            const imageWithQrDataUrl = await addQrCodeToImage(imageBytes);
-            setImage(imageWithQrDataUrl);
+            if (addQr) {
+                const imageWithQrDataUrl = await addQrCodeToImage(imageBytes);
+                setImage(imageWithQrDataUrl);
+            } else {
+                setImage(`data:image/jpeg;base64,${imageBytes}`);
+            }
         } catch (err) {
             setError('Failed to generate image. Please try again.');
             console.error(err);
@@ -92,11 +101,12 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
     const availableArtTechniques = ART_TECHNIQUES_BY_DESIGN[designStyle] || [];
 
     return (
-        <div className="flex flex-col lg:flex-row gap-8">
-            <div className="w-full lg:w-1/3 space-y-6 bg-slate-900/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-800">
-                <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Controls Area */}
+            <div className="lg:col-span-1">
+                <form onSubmit={handleSubmit} className="space-y-6 bg-slate-900/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-800 sticky top-8">
                     <div>
-                        <label htmlFor="prompt" className="block text-sm font-medium text-slate-300 mb-2">1. Your Vision</label>
+                        <label htmlFor="prompt" className="block text-sm font-medium text-slate-300 mb-2">Your Vision</label>
                         <textarea
                             id="prompt"
                             rows={4}
@@ -106,75 +116,75 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
                             placeholder="e.g., A futuristic cityscape at sunset"
                         />
                     </div>
-                    <div>
-                        <label htmlFor="design-style" className="block text-sm font-medium text-slate-300 mb-2">2. Design Style</label>
-                        <select
-                            id="design-style"
-                            value={designStyle}
-                            onChange={(e) => setDesignStyle(e.target.value)}
+                     <div>
+                        <label htmlFor="negative-prompt" className="block text-sm font-medium text-slate-300 mb-2">Negative Prompt (Optional)</label>
+                        <textarea
+                            id="negative-prompt"
+                            rows={2}
+                            value={negativePrompt}
+                            onChange={(e) => setNegativePrompt(e.target.value)}
                             className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition"
-                        >
-                            {DESIGN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                            placeholder="e.g., text, watermarks, people"
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="design-style" className="block text-sm font-medium text-slate-300 mb-2">Design Style</label>
+                            <select id="design-style" value={designStyle} onChange={(e) => setDesignStyle(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                {DESIGN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="artistic-style" className="block text-sm font-medium text-slate-300 mb-2">Artistic Style</label>
+                            <select id="artistic-style" value={artisticStyle} onChange={(e) => setArtisticStyle(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                {ARTISTIC_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
                     </div>
 
                     {availableArtTechniques.length > 0 && (
-                         <div>
-                            <label htmlFor="art-technique" className="block text-sm font-medium text-slate-300 mb-2">3. Art Technique</label>
-                            <select
-                                id="art-technique"
-                                value={artTechnique}
-                                onChange={(e) => setArtTechnique(e.target.value)}
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition"
-                            >
+                        <div>
+                            <label htmlFor="art-technique" className="block text-sm font-medium text-slate-300 mb-2">Art Technique</label>
+                            <select id="art-technique" value={artTechnique} onChange={(e) => setArtTechnique(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
                                 {availableArtTechniques.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                     )}
 
                     <div>
-                        <label htmlFor="artistic-style" className="block text-sm font-medium text-slate-300 mb-2">{availableArtTechniques.length > 0 ? '4.' : '3.'} Artistic Style</label>
-                        <select
-                            id="artistic-style"
-                            value={artisticStyle}
-                            onChange={(e) => setArtisticStyle(e.target.value)}
-                            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition"
-                        >
-                            {ARTISTIC_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">{availableArtTechniques.length > 0 ? '5.' : '4.'} Aspect Ratio</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Aspect Ratio</label>
                         <div className="grid grid-cols-5 gap-2">
                             {ASPECT_RATIOS.map((ratio) => (
-                                <button
-                                    key={ratio}
-                                    type="button"
-                                    onClick={() => setAspectRatio(ratio)}
-                                    className={`py-2 px-1 rounded-lg border text-xs sm:text-sm transition ${aspectRatio === ratio ? 'bg-cyan-500 border-cyan-500 text-white font-bold' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}
-                                >
+                                <button key={ratio} type="button" onClick={() => setAspectRatio(ratio)} className={`py-2 px-1 rounded-lg border text-xs sm:text-sm transition ${aspectRatio === ratio ? 'bg-cyan-500 border-cyan-500 text-white font-bold' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
                                     {ratio}
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center shadow-lg shadow-cyan-500/20"
-                    >
+                    <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center shadow-lg shadow-cyan-500/20">
                         {loading ? 'Generating...' : 'Generate Image'}
                     </button>
+                    <div className="flex items-center">
+                        <input
+                            id="add-qr"
+                            type="checkbox"
+                            checked={addQr}
+                            onChange={(e) => setAddQr(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-500 bg-slate-700 text-cyan-600 focus:ring-cyan-500"
+                        />
+                        <label htmlFor="add-qr" className="ml-2 block text-sm text-slate-400">Add verification QR code</label>
+                    </div>
                     {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
                 </form>
             </div>
-            <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-800 min-h-[400px] lg:min-h-0 p-6">
+             {/* Output Area */}
+             <div className="lg:col-span-2 w-full flex items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-800 min-h-[400px] lg:min-h-[calc(100vh-10rem)] p-6">
                 {loading && <Loader message="Creating your vision..." />}
                 {!loading && image && (
-                     <div className="text-center w-full h-full flex flex-col items-center justify-center">
-                        <img src={image} alt="Generated" className="max-w-full max-h-[70vh] rounded-lg object-contain shadow-2xl shadow-black/40" />
-                        <div className="mt-6">
+                     <div className="text-center w-full h-full flex flex-col items-center justify-center group">
+                        <img src={image} alt="Generated" className="max-w-full max-h-full rounded-lg object-contain shadow-2xl shadow-black/40" />
+                        <div className="mt-6 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                                 onClick={() => onShare({ contentUrl: image, contentText: prompt, contentType: 'image' })}
                                 className="flex items-center justify-center space-x-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-300"

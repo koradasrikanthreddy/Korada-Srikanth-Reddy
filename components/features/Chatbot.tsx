@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createChatSession } from '../../services/geminiService';
 import { Chat, GenerateContentResponse } from '@google/genai';
 import Loader from '../common/Loader';
+import { Remarkable } from 'remarkable';
+
+const md = new Remarkable({ html: true });
 
 interface Message {
     role: 'user' | 'model';
@@ -18,6 +21,12 @@ const Chatbot: React.FC<ChatbotProps> = ({ onShare }) => {
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    
+    const suggestions = [
+        "How does TikTok serve videos so quickly?",
+        "Explain Brutalist architecture",
+        "Suggest a marketing strategy for a new coffee shop"
+    ];
 
     useEffect(() => {
         const systemInstruction = `You are a helpful and creative assistant in a comprehensive AI Creative Suite. Be friendly, knowledgeable, and slightly enthusiastic about technology. You are aware of many design fields (e.g., Web Design, Architecture) and their associated artistic styles (e.g., Minimalist, Brutalist).
@@ -142,7 +151,11 @@ TikTok Tech Stack:
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-cyan-600 text-white rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none'}`}>
-                            {msg.text.split('\n').map((line, i) => <p key={i}>{line}</p>)}
+                            {msg.role === 'model' ? (
+                                <div className="prose prose-sm prose-invert" dangerouslySetInnerHTML={{ __html: md.render(msg.text) }}></div>
+                            ) : (
+                                msg.text
+                            )}
                         </div>
                     </div>
                 ))}
@@ -155,7 +168,19 @@ TikTok Tech Stack:
                 )}
                  <div ref={messagesEndRef} />
             </div>
-            <div className="flex-shrink-0 p-4 border-t border-slate-700">
+            <div className="flex-shrink-0 p-4 border-t border-slate-700 space-y-3">
+                 <div className="flex flex-wrap gap-2">
+                    {suggestions.map(suggestion => (
+                        <button
+                            key={suggestion}
+                            onClick={() => setInput(suggestion)}
+                            className="bg-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full hover:bg-slate-600 transition"
+                            disabled={loading}
+                        >
+                            {suggestion}
+                        </button>
+                    ))}
+                </div>
                 <form onSubmit={handleSubmit} className="flex space-x-3">
                     <input
                         type="text"

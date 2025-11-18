@@ -121,68 +121,62 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onShare }) => {
                 },
                 callbacks: {
                     onopen: () => {
-                        setStatus('Connected. Start speaking...');
-                        if (!inputAudioContextRef.current || !mediaStreamRef.current) return;
-                        
-                        streamSourceRef.current = inputAudioContextRef.current.createMediaStreamSource(mediaStreamRef.current);
-                        scriptProcessorRef.current = inputAudioContextRef.current.createScriptProcessor(4096, 1, 1);
-                        
-                        scriptProcessorRef.current.onaudioprocess = (audioProcessingEvent) => {
+                        setStatus('Connected! Speak now.');
+                        const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
+                        streamSourceRef.current = source;
+                        const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
+                        scriptProcessorRef.current = scriptProcessor;
+
+                        scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
                             const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
-                            const l = inputData.length;
-                            const int16 = new Int16Array(l);
-                            for (let i = 0; i < l; i++) {
-                                int16[i] = inputData[i] * 32768;
-                            }
                             const pcmBlob: Blob = {
-                                data: encode(new Uint8Array(int16.buffer)),
+                                data: encode(new Uint8Array(new Int16Array(inputData.map(x => x * 32768)).buffer)),
                                 mimeType: 'audio/pcm;rate=16000',
                             };
-                            
-                            if (sessionPromiseRef.current) {
-                                sessionPromiseRef.current.then((session) => {
-                                    session.sendRealtimeInput({ media: pcmBlob });
-                                });
-                            }
+                            sessionPromiseRef.current?.then((session) => {
+                                session.sendRealtimeInput({ media: pcmBlob });
+                            });
                         };
-                        streamSourceRef.current.connect(scriptProcessorRef.current);
-                        scriptProcessorRef.current.connect(inputAudioContextRef.current.destination);
+                        source.connect(scriptProcessor);
+                        scriptProcessor.connect(inputAudioContextRef.current!.destination);
                     },
                     onmessage: async (message: LiveServerMessage) => {
                         if (message.serverContent?.inputTranscription) {
                             const text = message.serverContent.inputTranscription.text;
-                             currentInputTranscription.current += text;
-                             setCurrentInterim(currentInputTranscription.current);
-                        } else if (message.serverContent?.outputTranscription) {
+                            currentInputTranscription.current += text;
+                            setCurrentInterim(currentInputTranscription.current);
+                        }
+                        if (message.serverContent?.outputTranscription) {
                             const text = message.serverContent.outputTranscription.text;
                             currentOutputTranscription.current += text;
                         }
 
                         if (message.serverContent?.turnComplete) {
-                            const finalInput = currentInputTranscription.current;
-                            const finalOutput = currentOutputTranscription.current;
-                            if (finalInput || finalOutput) {
-                                setTranscripts(prev => [...prev, {user: finalInput, model: finalOutput}]);
+                            const fullInput = currentInputTranscription.current;
+                            const fullOutput = currentOutputTranscription.current;
+                             if(fullInput.trim() || fullOutput.trim()) {
+                                setTranscripts(prev => [...prev, { user: fullInput, model: fullOutput }]);
                             }
                             currentInputTranscription.current = '';
                             currentOutputTranscription.current = '';
                             setCurrentInterim('');
                         }
 
-                        const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData.data;
-                        if (base64Audio && outputAudioContextRef.current) {
-                             nextStartTime = Math.max(nextStartTime, outputAudioContextRef.current.currentTime);
-                             const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContextRef.current, 24000, 1);
-                             const source = outputAudioContextRef.current.createBufferSource();
-                             source.buffer = audioBuffer;
-                             source.connect(outputNode);
-                             source.addEventListener('ended', () => sources.delete(source));
-                             source.start(nextStartTime);
-                             nextStartTime = nextStartTime + audioBuffer.duration;
-                             sources.add(source);
+                        const base64EncodedAudioString = message.serverContent?.modelTurn?.parts[0]?.inlineData.data;
+                        if (base64EncodedAudioString && outputAudioContextRef.current) {
+                            nextStartTime = Math.max(nextStartTime, outputAudioContextRef.current.currentTime);
+                            const audioBuffer = await decodeAudioData(decode(base64EncodedAudioString), outputAudioContextRef.current, 24000, 1);
+                            const source = outputAudioContextRef.current.createBufferSource();
+                            source.buffer = audioBuffer;
+                            source.connect(outputNode);
+                            source.addEventListener('ended', () => { sources.delete(source); });
+                            source.start(nextStartTime);
+                            nextStartTime = nextStartTime + audioBuffer.duration;
+                            sources.add(source);
                         }
-
-                         if (message.serverContent?.interrupted) {
+                        
+                        const interrupted = message.serverContent?.interrupted;
+                        if (interrupted) {
                             for (const source of sources.values()) {
                                 source.stop();
                                 sources.delete(source);
@@ -190,70 +184,65 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onShare }) => {
                             nextStartTime = 0;
                         }
                     },
-                    onerror: (e: ErrorEvent) => {
-                        console.error('API Error:', e);
-                        setStatus(`Error: ${e.message}. Please try again.`);
+                    onclose: () => {
+                        setStatus('Connection closed.');
                         stopSession();
                     },
-                    onclose: () => {
-                         // This is handled by stopSession() being called
+                    onerror: (e: ErrorEvent) => {
+                        console.error('Live session error:', e);
+                        setStatus('An error occurred. Connection closed.');
+                        stopSession();
                     },
                 },
             });
 
-        } catch (err) {
-            console.error('Failed to start session:', err);
-            setStatus('Could not start session. Please check microphone permissions.');
+        } catch (error) {
+            console.error('Failed to start session:', error);
+            setStatus('Could not start session. Please check permissions.');
             setIsSessionActive(false);
         }
     }, [stopSession]);
 
-     useEffect(() => {
-        return () => stopSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
+    useEffect(() => {
+        return () => {
+            stopSession();
+        };
+    }, [stopSession]);
+    
     const handleShare = () => {
-        const transcriptText = transcripts.map(t => `User: ${t.user || '(...)'}\n\nAI: ${t.model || '(...)'}`).join('\n\n');
-        onShare({ contentText: transcriptText, contentType: 'text' });
-    };
+        const fullTranscript = transcripts.map(t => `You: ${t.user}\nAI: ${t.model}`).join('\n\n');
+        onShare({ contentText: fullTranscript, contentType: 'text' });
+    }
 
     return (
-        <div className="flex flex-col h-[60vh]">
-            <div className="flex-grow bg-slate-900/50 rounded-t-lg p-4 overflow-y-auto space-y-4">
-                {transcripts.map((t, i) => (
-                    <div key={i}>
-                        {t.user && <p className="text-right"><span className="bg-cyan-800 text-white rounded-lg px-3 py-2 inline-block">{t.user}</span></p>}
-                        {t.model && <p className="text-left"><span className="bg-slate-700 text-slate-200 rounded-lg px-3 py-2 inline-block">{t.model}</span></p>}
-                    </div>
-                ))}
-                 {currentInterim && <p className="text-right text-slate-400 italic"><span className="bg-cyan-900/50 text-slate-300 rounded-lg px-3 py-2 inline-block">{currentInterim}</span></p>}
-
+        <div className="flex flex-col h-[calc(100vh-10rem)] max-h-[800px] bg-slate-900/50 rounded-lg border border-slate-700">
+            <div className="flex-shrink-0 p-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 className="font-bold text-lg text-white">Voice Chat</h3>
+                <button onClick={handleShare} disabled={transcripts.length === 0} className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-3 rounded-lg hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
+                    <span>Share Transcript</span>
+                </button>
             </div>
-            <div className="flex-shrink-0 bg-slate-800 rounded-b-lg p-4 flex items-center justify-between border-t border-slate-700">
-                <p className="text-sm text-slate-400">{status}</p>
-                <div className="flex items-center space-x-4">
-                    <button
-                        onClick={handleShare}
-                        disabled={transcripts.length === 0}
-                        className="flex items-center justify-center space-x-2 bg-purple-600 text-white font-bold py-3 px-4 rounded-full hover:bg-purple-700 transition-colors duration-300 disabled:bg-slate-600 disabled:cursor-not-allowed"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={isSessionActive ? stopSession : startSession}
-                        className={`px-6 py-3 font-bold rounded-full text-white transition-all duration-300 flex items-center space-x-2 ${isSessionActive ? 'bg-red-600 hover:bg-red-700' : 'bg-cyan-500 hover:bg-cyan-600'}`}
-                    >
-                        {isSessionActive ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                        ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" /><path d="M5.5 8.5a.5.5 0 01.5.5v1a4 4 0 004 4h0a4 4 0 004-4v-1a.5.5 0 011 0v1a5 5 0 01-4.5 4.975V17h3a.5.5 0 010 1h-7a.5.5 0 010-1h3v-1.525A5 5 0 014.5 13v-1a.5.5 0 01.5-.5z" /></svg>
-                        )}
-                        <span>{isSessionActive ? 'Stop Session' : 'Start Session'}</span>
-                    </button>
-                </div>
+            <div className="flex-grow p-6 overflow-y-auto space-y-4 min-h-0">
+                {transcripts.map((t, i) => (
+                    <React.Fragment key={i}>
+                        {t.user.trim() && <div className="flex justify-end"><div className="px-4 py-3 rounded-2xl rounded-br-lg max-w-md bg-cyan-600 text-white">{t.user}</div></div>}
+                        {t.model.trim() && <div className="flex justify-start"><div className="px-4 py-3 rounded-2xl rounded-bl-lg max-w-md bg-slate-700 text-slate-200">{t.model}</div></div>}
+                    </React.Fragment>
+                ))}
+                {currentInterim.trim() && <div className="flex justify-end"><div className="px-4 py-3 rounded-2xl rounded-br-lg max-w-md bg-cyan-600/70 text-white/80 italic">{currentInterim}</div></div>}
+            </div>
+            <div className="flex-shrink-0 p-4 border-t border-slate-700 text-center">
+                <p className="text-sm text-slate-400 h-5 mb-4">{status}</p>
+                <button
+                    onClick={isSessionActive ? stopSession : startSession}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center text-white transition-all duration-300 mx-auto ${isSessionActive ? 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30' : 'bg-cyan-500 hover:bg-cyan-600 shadow-lg shadow-cyan-500/30'}`}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                        <path d="M5.5 8.5a.5.5 0 01.5.5v1a4 4 0 004 4h0a4 4 0 004-4v-1a.5.5 0 011 0v1a5 5 0 01-4.5 4.975V17h3a.5.5 0 010 1h-7a.5.5 0 010-1h3v-1.525A5 5 0 014.5 13v-1a.5.5 0 01.5-.5z" />
+                    </svg>
+                </button>
             </div>
         </div>
     );

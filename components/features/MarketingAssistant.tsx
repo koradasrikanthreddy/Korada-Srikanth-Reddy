@@ -4,7 +4,7 @@ import { Chat, GenerateContentResponse } from '@google/genai';
 import Loader from '../common/Loader';
 import { Remarkable } from 'remarkable';
 
-const md = new Remarkable();
+const md = new Remarkable({ html: true });
 
 interface Message {
     role: 'user' | 'model';

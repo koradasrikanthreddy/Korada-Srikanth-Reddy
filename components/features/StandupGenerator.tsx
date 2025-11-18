@@ -1,7 +1,10 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { generateText, generateImage, generateSpeech, generateVideoFromImage, pollVideoOperation } from '../../services/geminiService';
 import { COMEDIAN_STYLES, AUDIENCE_TYPES, VEO_LOADING_MESSAGES, TTS_VOICES } from '../../constants';
 import Loader from '../common/Loader';
+import ApiKeyDialog from '../common/ApiKeyDialog';
 
 interface StandupGeneratorProps {
     onShare: (options: { contentUrl: string; contentText: string; contentType: 'video' }) => void;
@@ -26,6 +29,8 @@ const StandupGenerator: React.FC<StandupGeneratorProps> = ({ onShare }) => {
     const [loadingStep, setLoadingStep] = useState<LoadingStep>('');
     const [loadingMessage, setLoadingMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [apiKeyReady, setApiKeyReady] = useState(false);
+    const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
     
     // Refs
     const pollIntervalRef = useRef<number | null>(null);
@@ -34,11 +39,33 @@ const StandupGenerator: React.FC<StandupGeneratorProps> = ({ onShare }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
+        const checkKey = async () => {
+            // @ts-ignore
+            if (window.aistudio && await window.aistudio.hasSelectedApiKey()) {
+                setApiKeyReady(true);
+                setShowApiKeyDialog(false);
+            } else {
+                setApiKeyReady(false);
+                setShowApiKeyDialog(true);
+            }
+        };
+        checkKey();
+
         return () => {
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
             if (messageIntervalRef.current) clearInterval(messageIntervalRef.current);
         };
     }, []);
+    
+    const handleSelectKey = async () => {
+        // @ts-ignore
+        if (window.aistudio) {
+            // @ts-ignore
+            await window.aistudio.openSelectKey();
+            setApiKeyReady(true);
+            setShowApiKeyDialog(false);
+        }
+    };
 
     const stopLoading = () => {
         setLoadingStep('');
@@ -134,7 +161,9 @@ const StandupGenerator: React.FC<StandupGeneratorProps> = ({ onShare }) => {
 
         } catch (err: any) {
             if (err.message?.includes("Requested entity was not found")) {
-                setError("An API Key error occurred. Please ensure your key is valid and has billing enabled.");
+                setError("An API Key error occurred. Please select a valid key and ensure your project has billing enabled.");
+                setApiKeyReady(false);
+                setShowApiKeyDialog(true);
             } else {
                 setError(err.message || 'An error occurred during generation.');
             }
@@ -155,74 +184,77 @@ const StandupGenerator: React.FC<StandupGeneratorProps> = ({ onShare }) => {
     const isLoading = loadingStep !== '';
 
     return (
-        <div className="flex flex-col lg:flex-row gap-8">
-            {/* Controls Column */}
-            <div className="w-full lg:w-1/3 space-y-6">
-                <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-                     <h3 className="text-xl font-bold text-white mb-4">Comedy Set Setup</h3>
-                    <fieldset disabled={isLoading}>
-                        <div>
-                            <label htmlFor="topic" className="block text-sm font-medium text-slate-300 mb-2">Topic</label>
-                            <input id="topic" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., Dating Apps" />
-                        </div>
-                        <div>
-                            <label htmlFor="comedianStyle" className="block text-sm font-medium text-slate-300 mb-2">Comedian Style</label>
-                            <select id="comedianStyle" value={comedianStyle} onChange={(e) => setComedianStyle(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white">
-                                {COMEDIAN_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                         <div>
-                            <label htmlFor="audienceType" className="block text-sm font-medium text-slate-300 mb-2">Venue / Audience</label>
-                            <select id="audienceType" value={audienceType} onChange={(e) => setAudienceType(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white">
-                                {AUDIENCE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                         <div>
-                            <label htmlFor="comedianAppearance" className="block text-sm font-medium text-slate-300 mb-2">Comedian's Appearance</label>
-                            <textarea id="comedianAppearance" rows={3} value={comedianAppearance} onChange={(e) => setComedianAppearance(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., A woman in her 30s with vibrant pink hair, wearing a leather jacket." />
-                        </div>
-                        <button type="submit" className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300">
-                            {isLoading ? 'Generating...' : 'Generate Comedy Set'}
-                        </button>
-                    </fieldset>
-                    {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-                </form>
-            </div>
-
-            {/* Output Column */}
-            <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-800 min-h-[400px] lg:min-h-0 p-6">
-                {isLoading && <Loader message={loadingMessage} />}
-                
-                {!isLoading && comedianVideoUrl && jokeAudioUrl && jokeScript && (
-                    <div className="w-full max-w-sm mx-auto text-center space-y-4">
-                        <div className="relative aspect-[9/16] w-full bg-black rounded-lg overflow-hidden shadow-2xl shadow-cyan-900/20">
-                            <video ref={videoRef} src={comedianVideoUrl} muted loop playsInline className="w-full h-full object-cover" />
-                        </div>
-                        <audio ref={audioRef} src={jokeAudioUrl} controls className="w-full" />
-                        <div className="p-4 bg-slate-800 rounded-lg text-left text-sm text-slate-300 max-h-40 overflow-y-auto">
-                            <h4 className="font-bold text-slate-100 mb-2">Script:</h4>
-                            <p className="whitespace-pre-wrap">{jokeScript}</p>
-                        </div>
-                        <div className="flex gap-4">
-                            <button onClick={handlePlay} className="flex-1 bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">Play Set</button>
-                            <button
-                                onClick={() => onShare({ contentUrl: comedianVideoUrl, contentText: jokeScript, contentType: 'video' })}
-                                className="flex-1 bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors"
-                            >
-                                Share
+        <>
+            <ApiKeyDialog show={showApiKeyDialog} onSelectKey={handleSelectKey} />
+            <div className="flex flex-col lg:flex-row gap-8">
+                {/* Controls Column */}
+                <div className="w-full lg:w-1/3 space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+                        <h3 className="text-xl font-bold text-white mb-4">Comedy Set Setup</h3>
+                        <fieldset disabled={isLoading || !apiKeyReady}>
+                            <div>
+                                <label htmlFor="topic" className="block text-sm font-medium text-slate-300 mb-2">Topic</label>
+                                <input id="topic" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., Dating Apps" />
+                            </div>
+                            <div>
+                                <label htmlFor="comedianStyle" className="block text-sm font-medium text-slate-300 mb-2">Comedian Style</label>
+                                <select id="comedianStyle" value={comedianStyle} onChange={(e) => setComedianStyle(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white">
+                                    {COMEDIAN_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="audienceType" className="block text-sm font-medium text-slate-300 mb-2">Venue / Audience</label>
+                                <select id="audienceType" value={audienceType} onChange={(e) => setAudienceType(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white">
+                                    {AUDIENCE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="comedianAppearance" className="block text-sm font-medium text-slate-300 mb-2">Comedian's Appearance</label>
+                                <textarea id="comedianAppearance" rows={3} value={comedianAppearance} onChange={(e) => setComedianAppearance(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., A woman in her 30s with vibrant pink hair, wearing a leather jacket." />
+                            </div>
+                            <button type="submit" className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-300">
+                                {isLoading ? 'Generating...' : (!apiKeyReady ? 'API Key Required' : 'Generate Comedy Set')}
                             </button>
-                        </div>
-                    </div>
-                )}
+                        </fieldset>
+                        {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+                    </form>
+                </div>
 
-                {!isLoading && !comedianVideoUrl && (
-                    <div className="text-center text-slate-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 opacity-30" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 7.5c1.38 0 2.5 1.12 2.5 2.5S10.88 12.5 9.5 12.5 7 11.38 7 10s1.12-2.5 2.5-2.5m4.5 2.5c1.38 0 2.5-1.12 2.5-2.5S15.38 7.5 14 7.5s-2.5 1.12-2.5 2.5 1.12 2.5 2.5 2.5M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2M12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8m0-4c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5" /></svg>
-                        <p className="mt-4">Your AI comedy special will appear here.</p>
-                    </div>
-                )}
+                {/* Output Column */}
+                <div className="w-full lg:w-2/3 flex items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-800 min-h-[400px] lg:min-h-0 p-6">
+                    {isLoading && <Loader message={loadingMessage} />}
+                    
+                    {!isLoading && comedianVideoUrl && jokeAudioUrl && jokeScript && (
+                        <div className="w-full max-w-sm mx-auto text-center space-y-4">
+                            <div className="relative aspect-[9/16] w-full bg-black rounded-lg overflow-hidden shadow-2xl shadow-cyan-900/20">
+                                <video ref={videoRef} src={comedianVideoUrl} muted loop playsInline className="w-full h-full object-cover" />
+                            </div>
+                            <audio ref={audioRef} src={jokeAudioUrl} controls className="w-full" />
+                            <div className="p-4 bg-slate-800 rounded-lg text-left text-sm text-slate-300 max-h-40 overflow-y-auto">
+                                <h4 className="font-bold text-slate-100 mb-2">Script:</h4>
+                                <p className="whitespace-pre-wrap">{jokeScript}</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={handlePlay} className="flex-1 bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">Play Set</button>
+                                <button
+                                    onClick={() => onShare({ contentUrl: comedianVideoUrl, contentText: jokeScript, contentType: 'video' })}
+                                    className="flex-1 bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors"
+                                >
+                                    Share
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {!isLoading && !comedianVideoUrl && (
+                        <div className="text-center text-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 opacity-30" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 7.5c1.38 0 2.5 1.12 2.5 2.5S10.88 12.5 9.5 12.5 7 11.38 7 10s1.12-2.5 2.5-2.5m4.5 2.5c1.38 0 2.5-1.12 2.5-2.5S15.38 7.5 14 7.5s-2.5 1.12-2.5 2.5 1.12 2.5 2.5 2.5M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2M12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8m0-4c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5" /></svg>
+                            <p className="mt-4">Your AI comedy special will appear here.</p>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     );
 };
 
