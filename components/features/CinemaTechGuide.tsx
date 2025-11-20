@@ -7,10 +7,18 @@ interface CinemaTechGuideProps {
 
 type Tab = 'overview' | '3d' | '4d' | '5d' | '6d-9d' | 'xd';
 
+interface CinemaTechData {
+    title: string;
+    description: string;
+    points?: string[];
+    keyCharacteristics?: string[];
+    subSections?: { name: string; text: string }[];
+}
+
 const CinemaTechGuide: React.FC<CinemaTechGuideProps> = ({ onShare }) => {
     const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-    const data = {
+    const data: Record<Tab, CinemaTechData> = {
         overview: {
             title: "Evolution of Cinema",
             description: "In today's rapidly evolving realm of motion pictures, technological advancements have enabled us to create captivating and immersive experiences that go beyond traditional movie-watching.",

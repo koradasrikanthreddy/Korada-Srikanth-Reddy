@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { FEATURES, FeatureId, CATEGORY_DETAILS, PricingIcon, AccountIcon } from './constants';
 import ImageGenerator from './components/features/ImageGenerator';
@@ -26,6 +25,7 @@ import AiTrafficBooster from './components/features/AiTrafficBooster';
 import ViralMemeGenerator from './components/features/ViralMemeGenerator';
 import PodcastGenerator from './components/features/PodcastGenerator';
 import TrendForecaster from './components/features/TrendForecaster';
+import ProductionPlanner from './components/features/ProductionPlanner';
 import { PLATFORMS, Platform, PlatformCategory } from './constants';
 
 
@@ -241,6 +241,7 @@ const App: React.FC = () => {
             case 'traffic-booster': return TrafficBooster;
             case 'ai-traffic-booster': return AiTrafficBooster;
             case 'viral-meme-generator': return ViralMemeGenerator;
+            case 'production-planner': return ProductionPlanner;
             case 'pricing': return Pricing;
             case 'profile-settings': return ProfileAndSettings;
             default: return null;
@@ -378,7 +379,7 @@ const App: React.FC = () => {
                                 {categorizedFeatures.order.map(categoryName => (
                                     <div key={categoryName}>
                                         <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                                            {React.cloneElement(CATEGORY_DETAILS[categoryName].icon, {className: "w-6 h-6 text-cyan-400"})}
+                                            {React.cloneElement(CATEGORY_DETAILS[categoryName].icon as React.ReactElement<any>, {className: "w-6 h-6 text-cyan-400"})}
                                             <span className="ml-3">{categoryName}</span>
                                         </h2>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
