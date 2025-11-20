@@ -171,11 +171,9 @@ const ViralMemeGenerator: React.FC<ViralMemeGeneratorProps> = ({ onShare }) => {
                     setShowApiKeyDialog(false);
                 } else {
                     setApiKeyReady(false);
-                    if (mode === 'generate' || mode === 'upload') {
-                        setShowApiKeyDialog(true);
-                    } else {
-                        setShowApiKeyDialog(false);
-                    }
+                    // We don't automatically show the dialog here anymore to avoid annoyance.
+                    // It will be triggered when the user attempts to generate.
+                    setShowApiKeyDialog(false);
                 }
             } else {
                 setApiKeyReady(true);
@@ -392,12 +390,12 @@ const ViralMemeGenerator: React.FC<ViralMemeGeneratorProps> = ({ onShare }) => {
                         <button onClick={() => handleModeChange('video')} className={`w-1/3 p-2 rounded-md text-sm font-semibold transition ${mode === 'video' ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>From Video</button>
                     </div>
                     
-                    <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-                        <fieldset disabled={isLoading}>
+                    <form onSubmit={handleSubmit} className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+                        <fieldset disabled={isLoading} className="space-y-6">
                             {mode === 'generate' && (
                                 <div>
                                     <label htmlFor="topic" className="block text-sm font-medium text-slate-300 mb-2">Meme Topic</label>
-                                    <input id="topic" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white" placeholder="e.g., Programmers trying to fix bugs" />
+                                    <input id="topic" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500" placeholder="e.g., Programmers trying to fix bugs" />
                                 </div>
                             )}
                             {mode === 'upload' && (
@@ -410,7 +408,7 @@ const ViralMemeGenerator: React.FC<ViralMemeGeneratorProps> = ({ onShare }) => {
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-2">Upload Video</label>
                                     <input type="file" accept="video/*" onChange={handleVideoFileChange} className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100" />
-                                    {uploadedVideoUrl && <video src={uploadedVideoUrl} controls className="mt-2 rounded-lg w-full" />}
+                                    {uploadedVideoUrl && <video src={uploadedVideoUrl} controls className="mt-2 rounded-lg w-full max-h-48 object-contain bg-black" />}
                                 </div>
                             )}
                             <div>
@@ -419,11 +417,11 @@ const ViralMemeGenerator: React.FC<ViralMemeGeneratorProps> = ({ onShare }) => {
                                     {MEME_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </div>
-                            <button type="submit" disabled={isLoading} className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed">
+                            <button type="submit" disabled={isLoading} className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 transition-all">
                                 {isLoading ? 'Generating...' : 'Generate Meme'}
                             </button>
                         </fieldset>
-                        {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+                        {error && <p className="text-red-400 text-sm mt-4 text-center bg-red-900/20 p-2 rounded">{error}</p>}
                     </form>
                 </div>
 
@@ -437,7 +435,7 @@ const ViralMemeGenerator: React.FC<ViralMemeGeneratorProps> = ({ onShare }) => {
                             </div>
                             <button
                                 onClick={() => onShare({ contentUrl: finalVideoUrl, contentText: memeScript, contentType: 'video' })}
-                                className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700"
+                                className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 shadow-lg shadow-purple-500/20 transition-all"
                             >
                                 Share Meme
                             </button>

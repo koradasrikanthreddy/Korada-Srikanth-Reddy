@@ -782,54 +782,6 @@ export const expandContent = async (topic: string, contentType: string, tone: st
     });
 };
 
-// --- Domain Finder ---
-export const generateDomainAndHostingRecommendations = async (description: string, projectType: string): Promise<GenerateContentResponse> => {
-    const ai = getGeminiAI();
-    const prompt = `Generate 10 creative, modern, and available-sounding domain name ideas for a project described as: "${description}". The project type is: "${projectType}".
-    
-    Also, recommend 3 excellent FREE hosting providers suitable for this specific project type (e.g., if it's a static site, suggest GitHub Pages/Netlify/Vercel; if it requires a backend, suggest Render/Railway/Fly.io free tiers).
-    
-    Return the response as a JSON object with the following structure:
-    {
-      "domains": ["domain1.app", "domain2.io", ...],
-      "hosting": [
-        { "name": "Provider Name", "description": "Short description", "bestFor": "Best use case", "freeTierFeatures": "Key free features" },
-        ...
-      ]
-    }`;
-
-    return ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    domains: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING }
-                    },
-                    hosting: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                name: { type: Type.STRING },
-                                description: { type: Type.STRING },
-                                bestFor: { type: Type.STRING },
-                                freeTierFeatures: { type: Type.STRING },
-                            },
-                            required: ["name", "description", "bestFor", "freeTierFeatures"]
-                        }
-                    }
-                },
-                required: ["domains", "hosting"]
-            }
-        }
-    });
-};
-
 // --- Podcast Generator ---
 export const generatePodcastScript = async (sourceText: string): Promise<GenerateContentResponse> => {
     const ai = getGeminiAI();
@@ -884,5 +836,60 @@ export const generateTrendReport = async (topic: string): Promise<GenerateConten
         config: {
             tools: [{ googleSearch: {} }],
         }
+    });
+};
+
+// --- Domain Finder ---
+export const generateDomainAndHostingRecommendations = async (description: string, projectType: string): Promise<GenerateContentResponse> => {
+    const ai = getGeminiAI();
+    const prompt = `Generate domain name suggestions and hosting provider recommendations for the following project.
+
+    Project Description: "${description}"
+    Project Type: "${projectType}"
+
+    Provide 5 creative domain names.
+    Provide 3 hosting providers suitable for this project type, focusing on those with good free tiers or low cost entry.
+
+    Return the response as a JSON object.`;
+
+    return ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    domains: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.STRING,
+                        },
+                    },
+                    hosting: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                name: {
+                                    type: Type.STRING,
+                                },
+                                description: {
+                                    type: Type.STRING,
+                                },
+                                bestFor: {
+                                    type: Type.STRING,
+                                },
+                                freeTierFeatures: {
+                                    type: Type.STRING,
+                                },
+                            },
+                            required: ["name", "description", "bestFor", "freeTierFeatures"],
+                        },
+                    },
+                },
+                required: ["domains", "hosting"],
+            },
+        },
     });
 };

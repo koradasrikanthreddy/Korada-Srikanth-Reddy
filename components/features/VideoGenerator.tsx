@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { generateVideoFromPrompt, generateVideoFromImage, pollVideoOperation } from '../../services/geminiService';
-import { VIDEO_ASPECT_RATIOS, VEO_LOADING_MESSAGES } from '../../constants';
+import { VIDEO_ASPECT_RATIOS, VEO_LOADING_MESSAGES, DESIGN_STYLES, VISUAL_EFFECTS } from '../../constants';
 import { fileToBase64 } from '../../utils';
 import ImageUploader from '../common/ImageUploader';
 import Loader from '../common/Loader';
@@ -20,6 +20,8 @@ const VideoGenerator: React.FC<VideoGeneratorProps> = ({ onShare }) => {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>('16:9');
     const [isHighQuality, setIsHighQuality] = useState(false);
+    const [videoStyle, setVideoStyle] = useState(DESIGN_STYLES[0]);
+    const [visualEffect, setVisualEffect] = useState(VISUAL_EFFECTS[0]);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState(VEO_LOADING_MESSAGES[0]);
@@ -141,12 +143,20 @@ const VideoGenerator: React.FC<VideoGeneratorProps> = ({ onShare }) => {
         startLoadingMessages();
 
         try {
+            let fullPrompt = prompt;
+            if (mode === 'text-to-video') {
+                fullPrompt += `, in ${videoStyle} style`;
+            }
+            if (visualEffect !== 'None') {
+                fullPrompt += `, with ${visualEffect} effects`;
+            }
+
             let operation: any;
             if (mode === 'image-to-video' && imageFile) {
                 const imageBase64 = await fileToBase64(imageFile);
-                operation = await generateVideoFromImage(prompt, imageBase64, imageFile.type, aspectRatio, isHighQuality);
+                operation = await generateVideoFromImage(fullPrompt, imageBase64, imageFile.type, aspectRatio, isHighQuality);
             } else {
-                operation = await generateVideoFromPrompt(prompt, aspectRatio, isHighQuality);
+                operation = await generateVideoFromPrompt(fullPrompt, aspectRatio, isHighQuality);
             }
             handlePolling(operation);
         } catch (err: any) {
@@ -194,6 +204,24 @@ const VideoGenerator: React.FC<VideoGeneratorProps> = ({ onShare }) => {
                                 placeholder={mode === 'image-to-video' ? "e.g., Make the clouds move (optional)" : "e.g., A neon hologram of a cat driving fast"}
                             />
                         </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            {mode === 'text-to-video' && (
+                                <div>
+                                    <label htmlFor="video-style" className="block text-sm font-medium text-slate-300 mb-2">Video Style</label>
+                                    <select id="video-style" value={videoStyle} onChange={(e) => setVideoStyle(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                        {DESIGN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <div>
+                                <label htmlFor="visual-effect" className="block text-sm font-medium text-slate-300 mb-2">Visual Effect</label>
+                                <select id="visual-effect" value={visualEffect} onChange={(e) => setVisualEffect(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                    {VISUAL_EFFECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-2">Aspect Ratio</label>

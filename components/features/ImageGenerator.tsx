@@ -1,11 +1,7 @@
 
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { generateImage } from '../../services/geminiService';
-import { DESIGN_STYLES, ASPECT_RATIOS, ART_TECHNIQUES_BY_DESIGN, ARTISTIC_STYLES } from '../../constants';
+import { DESIGN_STYLES, ASPECT_RATIOS, ART_TECHNIQUES_BY_DESIGN, ARTISTIC_STYLES, VISUAL_EFFECTS } from '../../constants';
 import Loader from '../common/Loader';
 import QRCode from 'qrcode';
 
@@ -61,6 +57,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
     const [designStyle, setDesignStyle] = useState(DESIGN_STYLES[0]);
     const [artTechnique, setArtTechnique] = useState('');
     const [artisticStyle, setArtisticStyle] = useState(ARTISTIC_STYLES[0]);
+    const [visualEffect, setVisualEffect] = useState(VISUAL_EFFECTS[0]);
     const [aspectRatio, setAspectRatio] = useState(ASPECT_RATIOS[0]);
     const [addQr, setAddQr] = useState(true);
     const [image, setImage] = useState<string | null>(null);
@@ -82,7 +79,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
         setError(null);
         setImage(null);
         try {
-            let fullPrompt = `${prompt}, in a ${designStyle} design style${artTechnique ? `, using a ${artTechnique} technique` : ''}${artisticStyle !== 'None' ? `, with a ${artisticStyle} artistic style` : ''}.`;
+            let fullPrompt = `${prompt}, in a ${designStyle} design style${artTechnique ? `, using a ${artTechnique} technique` : ''}${artisticStyle !== 'None' ? `, with a ${artisticStyle} artistic style` : ''}${visualEffect !== 'None' ? `, featuring ${visualEffect} visual effects` : ''}.`;
             if (negativePrompt) {
                 fullPrompt += `, avoiding ${negativePrompt}`;
             }
@@ -145,15 +142,23 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
                             </select>
                         </div>
                     </div>
-
-                    {availableArtTechniques.length > 0 && (
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {availableArtTechniques.length > 0 && (
+                            <div>
+                                <label htmlFor="art-technique" className="block text-sm font-medium text-slate-300 mb-2">Art Technique</label>
+                                <select id="art-technique" value={artTechnique} onChange={(e) => setArtTechnique(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                    {availableArtTechniques.map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                        )}
                         <div>
-                            <label htmlFor="art-technique" className="block text-sm font-medium text-slate-300 mb-2">Art Technique</label>
-                            <select id="art-technique" value={artTechnique} onChange={(e) => setArtTechnique(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
-                                {availableArtTechniques.map((s) => <option key={s} value={s}>{s}</option>)}
+                            <label htmlFor="visual-effect" className="block text-sm font-medium text-slate-300 mb-2">Visual Effect</label>
+                            <select id="visual-effect" value={visualEffect} onChange={(e) => setVisualEffect(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                {VISUAL_EFFECTS.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
-                    )}
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">Aspect Ratio</label>

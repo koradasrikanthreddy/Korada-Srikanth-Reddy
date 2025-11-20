@@ -24,7 +24,6 @@ import DanceGenerator from './components/features/DanceGenerator';
 import TrafficBooster from './components/features/TrafficBooster';
 import AiTrafficBooster from './components/features/AiTrafficBooster';
 import ViralMemeGenerator from './components/features/ViralMemeGenerator';
-import DomainFinder from './components/features/DomainFinder';
 import PodcastGenerator from './components/features/PodcastGenerator';
 import TrendForecaster from './components/features/TrendForecaster';
 import { PLATFORMS, Platform, PlatformCategory } from './constants';
@@ -242,7 +241,6 @@ const App: React.FC = () => {
             case 'traffic-booster': return TrafficBooster;
             case 'ai-traffic-booster': return AiTrafficBooster;
             case 'viral-meme-generator': return ViralMemeGenerator;
-            case 'domain-finder': return DomainFinder;
             case 'pricing': return Pricing;
             case 'profile-settings': return ProfileAndSettings;
             default: return null;
