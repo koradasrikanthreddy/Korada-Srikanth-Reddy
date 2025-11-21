@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { generateImage } from '../../services/geminiService';
-import { DESIGN_STYLES, ASPECT_RATIOS, ART_TECHNIQUES_BY_DESIGN, ARTISTIC_STYLES, VISUAL_EFFECTS } from '../../constants';
+import { DESIGN_STYLES, ASPECT_RATIOS, ART_TECHNIQUES_BY_DESIGN, ARTISTIC_STYLES, VISUAL_EFFECTS, BACKGROUND_OPTIONS } from '../../constants';
 import Loader from '../common/Loader';
 import QRCode from 'qrcode';
 
@@ -58,6 +58,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
     const [artTechnique, setArtTechnique] = useState('');
     const [artisticStyle, setArtisticStyle] = useState(ARTISTIC_STYLES[0]);
     const [visualEffect, setVisualEffect] = useState(VISUAL_EFFECTS[0]);
+    const [background, setBackground] = useState(BACKGROUND_OPTIONS[0].value);
     const [aspectRatio, setAspectRatio] = useState(ASPECT_RATIOS[0]);
     const [addQr, setAddQr] = useState(true);
     const [image, setImage] = useState<string | null>(null);
@@ -81,7 +82,14 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
         setImage(null);
         setIsSaved(false);
         try {
-            let fullPrompt = `${prompt}, in a ${designStyle} design style${artTechnique ? `, using a ${artTechnique} technique` : ''}${artisticStyle !== 'None' ? `, with a ${artisticStyle} artistic style` : ''}${visualEffect !== 'None' ? `, featuring ${visualEffect} visual effects` : ''}.`;
+            let fullPrompt = `${prompt}, in a ${designStyle} design style${artTechnique ? `, using a ${artTechnique} technique` : ''}${artisticStyle !== 'None' ? `, with a ${artisticStyle} artistic style` : ''}${visualEffect !== 'None' ? `, featuring ${visualEffect} visual effects` : ''}`;
+            
+            if (background) {
+                fullPrompt += `, ${background}`;
+            }
+            
+            fullPrompt += '.';
+
             if (negativePrompt) {
                 fullPrompt += `, avoiding ${negativePrompt}`;
             }
@@ -165,6 +173,13 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onShare }) => {
                                 {VISUAL_EFFECTS.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="background" className="block text-sm font-medium text-slate-300 mb-2">Background Setting</label>
+                        <select id="background" value={background} onChange={(e) => setBackground(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 transition">
+                            {BACKGROUND_OPTIONS.map((bg) => <option key={bg.label} value={bg.value}>{bg.label}</option>)}
+                        </select>
                     </div>
 
                     <div>

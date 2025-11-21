@@ -114,6 +114,20 @@ export const ART_TECHNIQUES_BY_DESIGN: Record<string, string[]> = {
     'Watercolor': ['Wet on Wet', 'Dry Brush', 'Wash'],
 };
 
+// --- Background Prompts ---
+export const BACKGROUND_OPTIONS = [
+    { label: 'Auto / Default', value: '' },
+    { label: 'Studio (Clean)', value: 'in a professional photography studio with soft lighting' },
+    { label: 'Cyberpunk (Neon)', value: 'in a futuristic cyberpunk city with neon lights and rain' },
+    { label: 'Nature (Forest)', value: 'in a lush green forest with dappled sunlight' },
+    { label: 'Office (Modern)', value: 'in a modern, bright office environment with glass walls' },
+    { label: 'Space (Cosmic)', value: 'against a backdrop of deep space, stars, and nebulae' },
+    { label: 'Abstract (Colorful)', value: 'with a vibrant, abstract geometric background' },
+    { label: 'Luxury (Golden)', value: 'in a luxurious setting with gold accents and warm lighting' },
+    { label: 'Industrial (Gritty)', value: 'in a gritty industrial warehouse setting with moody lighting' },
+    { label: 'Minimalist (White)', value: 'isolated on a clean, pure white background' },
+];
+
 // --- Image Editor ---
 export const IMAGE_EDIT_SUGGESTIONS = ["Make it cybernetic", "Add a sunset background", "Turn into a sketch", "Add neon lights", "Make it underwater", "Remove background"];
 

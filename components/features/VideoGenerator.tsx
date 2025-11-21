@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { generateVideoFromPrompt, generateVideoFromImage, pollVideoOperation } from '../../services/geminiService';
-import { VIDEO_ASPECT_RATIOS, VEO_LOADING_MESSAGES, DESIGN_STYLES, VISUAL_EFFECTS } from '../../constants';
+import { VIDEO_ASPECT_RATIOS, VEO_LOADING_MESSAGES, DESIGN_STYLES, VISUAL_EFFECTS, BACKGROUND_OPTIONS } from '../../constants';
 import { fileToBase64 } from '../../utils';
 import ImageUploader from '../common/ImageUploader';
 import Loader from '../common/Loader';
@@ -22,6 +22,7 @@ const VideoGenerator: React.FC<VideoGeneratorProps> = ({ onShare }) => {
     const [isHighQuality, setIsHighQuality] = useState(false);
     const [videoStyle, setVideoStyle] = useState(DESIGN_STYLES[0]);
     const [visualEffect, setVisualEffect] = useState(VISUAL_EFFECTS[0]);
+    const [background, setBackground] = useState(BACKGROUND_OPTIONS[0].value);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState(VEO_LOADING_MESSAGES[0]);
@@ -148,6 +149,9 @@ const VideoGenerator: React.FC<VideoGeneratorProps> = ({ onShare }) => {
             let fullPrompt = prompt;
             if (mode === 'text-to-video') {
                 fullPrompt += `, in ${videoStyle} style`;
+                if (background) {
+                    fullPrompt += `, ${background}`;
+                }
             }
             if (visualEffect !== 'None') {
                 fullPrompt += `, with ${visualEffect} effects`;
@@ -231,12 +235,20 @@ const VideoGenerator: React.FC<VideoGeneratorProps> = ({ onShare }) => {
 
                             <div className="space-y-4">
                                 {mode === 'text-to-video' && (
-                                    <div>
-                                        <label htmlFor="video-style" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Video Style</label>
-                                        <select id="video-style" value={videoStyle} onChange={(e) => setVideoStyle(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:ring-2 focus:ring-cyan-500 transition">
-                                            {DESIGN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
-                                        </select>
-                                    </div>
+                                    <>
+                                        <div>
+                                            <label htmlFor="video-style" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Video Style</label>
+                                            <select id="video-style" value={videoStyle} onChange={(e) => setVideoStyle(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                                {DESIGN_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="background" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Background</label>
+                                            <select id="background" value={background} onChange={(e) => setBackground(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:ring-2 focus:ring-cyan-500 transition">
+                                                {BACKGROUND_OPTIONS.map((bg) => <option key={bg.label} value={bg.value}>{bg.label}</option>)}
+                                            </select>
+                                        </div>
+                                    </>
                                 )}
                                 <div>
                                     <label htmlFor="visual-effect" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Visual Effect</label>

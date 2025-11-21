@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { generateImage } from '../../services/geminiService';
-import { ASPECT_RATIOS, AVATAR_HAIR_COLORS, AVATAR_EYE_COLORS, AVATAR_CLOTHING_STYLES, AVATAR_EXPRESSIONS } from '../../constants';
+import { ASPECT_RATIOS, AVATAR_HAIR_COLORS, AVATAR_EYE_COLORS, AVATAR_CLOTHING_STYLES, AVATAR_EXPRESSIONS, BACKGROUND_OPTIONS } from '../../constants';
 import Loader from '../common/Loader';
 import QRCode from 'qrcode';
 
@@ -56,6 +56,7 @@ const AvatarGenerator: React.FC<AvatarGeneratorProps> = ({ onShare }) => {
     const [eyeColor, setEyeColor] = useState(AVATAR_EYE_COLORS[0]);
     const [clothingStyle, setClothingStyle] = useState(AVATAR_CLOTHING_STYLES[0]);
     const [expression, setExpression] = useState(AVATAR_EXPRESSIONS[0]);
+    const [background, setBackground] = useState(BACKGROUND_OPTIONS[0].value);
     const [aspectRatio, setAspectRatio] = useState('1:1');
     const [addQr, setAddQr] = useState(true);
     const [image, setImage] = useState<string | null>(null);
@@ -85,6 +86,10 @@ const AvatarGenerator: React.FC<AvatarGeneratorProps> = ({ onShare }) => {
 
             if (attributes) {
                 fullPrompt += ` The character has ${attributes}.`;
+            }
+            
+            if (background) {
+                fullPrompt += ` ${background}.`;
             }
             
             const imageBytes = await generateImage(fullPrompt, aspectRatio);
@@ -160,16 +165,29 @@ const AvatarGenerator: React.FC<AvatarGeneratorProps> = ({ onShare }) => {
                     </select>
                 </div>
 
-                 <div>
-                    <label htmlFor="expression" className="block text-sm font-medium text-slate-300 mb-2">Expression</label>
-                    <select
-                        id="expression"
-                        value={expression}
-                        onChange={(e) => setExpression(e.target.value)}
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
-                    >
-                        {AVATAR_EXPRESSIONS.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-                    </select>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="expression" className="block text-sm font-medium text-slate-300 mb-2">Expression</label>
+                        <select
+                            id="expression"
+                            value={expression}
+                            onChange={(e) => setExpression(e.target.value)}
+                            className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
+                        >
+                            {AVATAR_EXPRESSIONS.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="background" className="block text-sm font-medium text-slate-300 mb-2">Background</label>
+                        <select
+                            id="background"
+                            value={background}
+                            onChange={(e) => setBackground(e.target.value)}
+                            className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
+                        >
+                            {BACKGROUND_OPTIONS.map((bg) => <option key={bg.label} value={bg.value}>{bg.label}</option>)}
+                        </select>
+                    </div>
                 </div>
 
                  <div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { generateText, generateImage, generateSpeech, generateVideoFromImage, pollVideoOperation } from '../../services/geminiService';
-import { TTS_VOICES, VEO_LOADING_MESSAGES } from '../../constants';
+import { TTS_VOICES, VEO_LOADING_MESSAGES, BACKGROUND_OPTIONS } from '../../constants';
 import Loader from '../common/Loader';
 import ApiKeyDialog from '../common/ApiKeyDialog';
 import { pcmToWav, decode } from '../../utils';
@@ -38,6 +38,7 @@ const GlobalAvatarCreator: React.FC<GlobalAvatarCreatorProps> = ({ onShare }) =>
     const [targetLanguage, setTargetLanguage] = useState('Spanish');
     const [isCustomLanguage, setIsCustomLanguage] = useState(false);
     const [customLanguage, setCustomLanguage] = useState('');
+    const [background, setBackground] = useState(BACKGROUND_OPTIONS[0].value);
     
     // Bilingual Settings
     const [isBilingual, setIsBilingual] = useState(false);
@@ -203,7 +204,14 @@ const GlobalAvatarCreator: React.FC<GlobalAvatarCreatorProps> = ({ onShare }) =>
             // Step 1: Generate Avatar
             setLoadingStep('avatar');
             setLoadingMessage('Generating digital human...');
-            const imageBytes = await generateImage(`A high-quality, photorealistic portrait of ${avatarDescription}, facing the camera, neutral lighting, 8k resolution.`, '9:16');
+            
+            let prompt = `A high-quality, photorealistic portrait of ${avatarDescription}`;
+            if (background) {
+                prompt += `, ${background}`;
+            }
+            prompt += `, facing the camera, neutral lighting, 8k resolution.`;
+
+            const imageBytes = await generateImage(prompt, '9:16');
             setAvatarImage({ base64: imageBytes, mimeType: 'image/jpeg' });
 
             // Step 2: Generate Audio
@@ -276,8 +284,19 @@ const GlobalAvatarCreator: React.FC<GlobalAvatarCreatorProps> = ({ onShare }) =>
                                 value={avatarDescription}
                                 onChange={(e) => setAvatarDescription(e.target.value)}
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white text-sm focus:ring-2 focus:ring-cyan-500 placeholder-slate-600 resize-none"
-                                placeholder="e.g., A professional news anchor, Japanese female, wearing a suit, studio background."
+                                placeholder="e.g., A professional news anchor, Japanese female, wearing a suit."
                             />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Setting / Background</label>
+                            <select 
+                                value={background} 
+                                onChange={(e) => setBackground(e.target.value)} 
+                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:ring-2 focus:ring-cyan-500 transition"
+                            >
+                                {BACKGROUND_OPTIONS.map((bg) => <option key={bg.label} value={bg.value}>{bg.label}</option>)}
+                            </select>
                         </div>
 
                         <div>
