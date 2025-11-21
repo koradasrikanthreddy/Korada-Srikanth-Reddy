@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { FEATURES, FeatureId, CATEGORY_DETAILS, PricingIcon, AccountIcon } from './constants';
 import ImageGenerator from './components/features/ImageGenerator';
@@ -26,6 +27,7 @@ import ViralMemeGenerator from './components/features/ViralMemeGenerator';
 import PodcastGenerator from './components/features/PodcastGenerator';
 import TrendForecaster from './components/features/TrendForecaster';
 import ProductionPlanner from './components/features/ProductionPlanner';
+import GlobalAvatarCreator from './components/features/GlobalAvatarCreator';
 import { PLATFORMS, Platform, PlatformCategory } from './constants';
 
 
@@ -221,6 +223,7 @@ const App: React.FC = () => {
             case 'image-generator': return ImageGenerator;
             case 'image-editor': return ImageEditor;
             case 'video-generator': return VideoGenerator;
+            case 'global-avatar': return GlobalAvatarCreator;
             case 'podcast-generator': return PodcastGenerator;
             case 'movie-generator': return MovieGenerator;
             case 'voice-chat': return VoiceChat;
