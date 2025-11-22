@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { generateText, generateImage, generateSpeech, generateVideoFromImage, pollVideoOperation } from '../../services/geminiService';
-import { COMEDIAN_STYLES, AUDIENCE_TYPES, VEO_LOADING_MESSAGES, TTS_VOICES } from '../../constants';
+import { COMEDIAN_STYLES, AUDIENCE_TYPES, VEO_LOADING_MESSAGES, TTS_VOICES, AVATAR_EXPRESSIONS } from '../../constants';
 import Loader from '../common/Loader';
 import ApiKeyDialog from '../common/ApiKeyDialog';
 import { pcmToWav, decode } from '../../utils';
@@ -18,6 +18,7 @@ const StandupGenerator: React.FC<StandupGeneratorProps> = ({ onShare }) => {
     const [comedianStyle, setComedianStyle] = useState(COMEDIAN_STYLES[0]);
     const [audienceType, setAudienceType] = useState(AUDIENCE_TYPES[0]);
     const [comedianAppearance, setComedianAppearance] = useState('');
+    const [expression, setExpression] = useState(AVATAR_EXPRESSIONS[0]);
 
     // Outputs
     const [jokeScript, setJokeScript] = useState<string | null>(null);
@@ -148,7 +149,7 @@ const StandupGenerator: React.FC<StandupGeneratorProps> = ({ onShare }) => {
             // Step 2: Generate Comedian Avatar
             setLoadingStep('avatar');
             setLoadingMessage('Casting the perfect comedian...');
-            const avatarPrompt = `A high-quality, photorealistic portrait of a standup comedian on a stage in a ${audienceType}. Their appearance is: "${comedianAppearance}". The comedian is looking towards the camera.`;
+            const avatarPrompt = `A high-quality, photorealistic portrait of a standup comedian on a stage in a ${audienceType}. Their appearance is: "${comedianAppearance}". The comedian has a ${expression} expression and is looking towards the camera.`;
             const imageBytes = await generateImage(avatarPrompt, '1:1');
             setComedianImage({ base64: imageBytes, mimeType: 'image/jpeg' });
 
@@ -229,6 +230,12 @@ const StandupGenerator: React.FC<StandupGeneratorProps> = ({ onShare }) => {
                                 <label htmlFor="audienceType" className="block text-sm font-medium text-slate-300 mb-2">Venue / Audience</label>
                                 <select id="audienceType" value={audienceType} onChange={(e) => setAudienceType(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white">
                                     {AUDIENCE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="expression" className="block text-sm font-medium text-slate-300 mb-2">Expression</label>
+                                <select id="expression" value={expression} onChange={(e) => setExpression(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white">
+                                    {AVATAR_EXPRESSIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                                 </select>
                             </div>
                             <div>
